@@ -5,7 +5,7 @@ namespace ShopApi
         public int Id {get; set;}
         public Guid OrderId {get; set;}
         public Guid UserId {get; set;}
-        public virtual User user {get; set;}
+        public  User user {get; set;}
 
         public decimal Subtotal {get; set;}
         public decimal DiscountAmount {get; set;}
