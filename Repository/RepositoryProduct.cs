@@ -40,7 +40,8 @@ namespace ShopApi
             try
             {
                  _context.Products.Update(product);
-                 return product;
+                await _context.SaveChangesAsync();
+                return product;
             }
             catch(Exception ex)
             {
