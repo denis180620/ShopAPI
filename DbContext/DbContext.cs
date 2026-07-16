@@ -15,6 +15,7 @@ namespace ShopApi
         public DbSet<Order> Orders {get; set;}
         public DbSet<OrderItem> OrderItems {get; set;}
         public DbSet<RefreshToken> RefreshTokens {get; set;}
+        public DbSet<EmailConfirmationToken> EmailConfirmationTokens {get; set;}
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -187,6 +188,18 @@ namespace ShopApi
                     .HasForeignKey(oi => oi.ProductId)
                     .OnDelete(DeleteBehavior.Restrict); 
             });
+            modelBuilder.Entity<EmailConfirmationToken>(entity =>
+        {
+
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.IsUsed });
+            entity.HasIndex(e => e.ExpiresAt);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
         }
     }
 } 

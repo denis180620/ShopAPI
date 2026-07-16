@@ -7,10 +7,14 @@ namespace ShopApi
         Task<Product> CreateProduct(Product product);
         Task<Product> UpdateProduct(Product product);
         Task<bool> DeleteProduct(Guid id);
-        Task<List<Product>> GetProductsAsync();
-        Task<Product> GetNameProduct(string name);
+        Task<(IEnumerable<Product> Items, int TotalCount)> GetProductsAsync(PaginationRequest request);
+
         Task<List<Product>> GetQuantityProductAsync(int quantity);
-        Task<List<Product>> GetPriceProduct(decimal price);
+        Task<Product> GetProductById(Guid Id);
+        Task<Product> GetProductCategoryById(int Id);
+        Task<(IEnumerable<Product> Items, int TotalCount)> GetProductsPaginated(
+           PaginationRequest request);
+        Task<List<Product>> GetAdministratorProduct(Guid UserId);
     }
 
     public class RepositoryProduct : IProduct
@@ -69,11 +73,51 @@ namespace ShopApi
                 throw new Exception("ОШибка при удалении продукта" + ex.Message);
             }
         }
-        public async Task<List<Product>> GetProductsAsync()
+        public async Task<(IEnumerable<Product> Items, int TotalCount)> GetProductsAsync(PaginationRequest request)
         {
             try{
-            var products = await _context.Products.ToListAsync();
-            return products;
+            var query = _context.Products
+                        .Include(p => p.Category)
+                        .AsNoTracking();
+
+                if ( request.CategoryId > 0)
+                {
+                    query = query.Where(p => p.CategoryId == request.CategoryId);
+                }
+
+                // Фильтрация по цене
+                if (request.minPrice > -1)
+                {
+                    query = query.Where(p => p.Price >= request.minPrice);
+                }
+
+                if (request.maxPrice > 0)
+                {
+                    query = query.Where(p => p.Price <= request.maxPrice);
+                }
+
+                var totalCount = await query.CountAsync();
+
+                    query = request.SortBy.ToLower() switch
+                    {
+                        "name" => request.SortDescending
+                            ? query.OrderByDescending(p => p.Name)
+                            : query.OrderBy(p => p.Name),
+                        "price" => request.SortDescending
+                            ? query.OrderByDescending(p => p.Price)
+                            : query.OrderBy(p => p.Price),
+                        "createdat" => request.SortDescending
+                            ? query.OrderByDescending(p => p.CreatedAt)
+                            : query.OrderBy(p => p.CreatedAt),
+                        _ => query.OrderBy(p => p.Id)
+                    };
+
+                var items = await query
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync();
+
+                return (items, totalCount);
             }
             catch(Exception ex)
             {
@@ -81,20 +125,80 @@ namespace ShopApi
                 throw new Exception("ОШибка при получении продуктов" + ex.Message);
             }
         }
-        public async Task<Product> GetNameProduct(string name)
-        {
-            var product = await _context.Products.FirstOrDefaultAsync(c => c.Name == name);
-            return product;
-        }
         public async Task<List<Product>> GetQuantityProductAsync(int queantity)
         {
             var product = await _context.Products.AsNoTracking().Where(c => c.StockQuantity < queantity).ToListAsync();
             return product;
         }
-        public async Task<List<Product>> GetPriceProduct(decimal price)
+        public async Task<Product> GetProductCategoryById(int Id)
         {
-            var product = await _context.Products.AsNoTracking().Where(c => c.Price < price).ToListAsync();
+            var product = await _context.Products.FirstOrDefaultAsync(s => s.CategoryId == Id);
             return product;
+        }
+        public async Task<Product> GetProductById(Guid Id)
+        {
+            var product = await _context.Products.FirstOrDefaultAsync(s => s.Id == Id);
+            return product;
+        }
+        public async Task<(IEnumerable<Product> Items, int TotalCount)> GetProductsPaginated(
+           PaginationRequest request)
+        {
+            var query = _context.Products
+                .Include(p => p.Category)
+                .AsNoTracking();
+
+                var search = request.SearchTerm.ToLower();
+                query = query.Where(p =>
+                    p.Name.ToLower().Contains(search) ||
+                    p.NameEn.ToLower().Contains(search) ||
+                    p.Description.ToLower().Contains(search) ||
+                    p.DescriptionEn.ToLower().Contains(search));
+            
+            if (request.CategoryId > 0)
+            {
+                query = query.Where(p => p.CategoryId == request.CategoryId);
+            }
+
+            if (request.minPrice > -1)
+            {
+                query = query.Where(p => p.Price >= request.minPrice);
+            }
+
+            if (request.maxPrice > 0)
+            {
+                query = query.Where(p => p.Price <= request.maxPrice);
+            }
+
+            var totalCount = await query.CountAsync();
+
+
+                query = request.SortBy.ToLower() switch
+                {
+                    "name" => request.SortDescending
+                        ? query.OrderByDescending(p => p.Name)
+                        : query.OrderBy(p => p.Name),
+                    "price" => request.SortDescending
+                        ? query.OrderByDescending(p => p.Price)
+                        : query.OrderBy(p => p.Price),
+                    "createdat" => request.SortDescending
+                        ? query.OrderByDescending(p => p.CreatedAt)
+                        : query.OrderBy(p => p.CreatedAt),
+                    _ => query.OrderBy(p => p.Id)
+                };
+
+
+            // Пагинация
+            var items = await query
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+        public async Task<List<Product>> GetAdministratorProduct(Guid UserId)
+        {
+            var products = await _context.Products.AsNoTracking().Where(c => c.UserId == UserId).ToListAsync();
+            return products;
         }
     }
 }

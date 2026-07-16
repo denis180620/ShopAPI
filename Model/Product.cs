@@ -2,6 +2,7 @@ namespace ShopApi
 {
     public class Product
     {
+        public Guid UserId {get; set;} // тот кто создает продукты идмины к ним привязка
         public Guid Id {get; set;}
         public string Name {get; set;}
         public decimal Price {get; set;}

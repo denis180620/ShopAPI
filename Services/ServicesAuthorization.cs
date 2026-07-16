@@ -10,6 +10,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.AspNetCore.Authorization.Infrastructure;
+using Org.BouncyCastle.Bcpg.OpenPgp;
 
 
 namespace ShopApi
@@ -21,7 +22,7 @@ namespace ShopApi
         Task<Result<bool>> LogOutAsync(string refreshToken);
         Task<Result<ResponseUser>> GetCurrentUserAsync(Guid UserId);
         Task<Result<RefreshToken>>RefreshTokenAsync(string refreshToken);
-        Task<Result<bool>> ConfirmEmailAsync(string Email);
+        Task<Result<bool>> ConfirmEmailAsync(string Email, string token);
         Task<Result<bool>> FogotPasswordAsync(string email);
         Task<Result<bool>> ResetPasswordAsync(ResetPassword reset); 
     }
@@ -105,6 +106,10 @@ namespace ShopApi
             {
                 _logger.LogWarning("Неверный пароль: {Email}", users.Email);
                 return Result<ResponseLoginUser>.Failure(403, "Неверный email или пароль");
+            }
+            if (!await _userManager.IsEmailConfirmedAsync(users))
+            {
+                return Result<ResponseLoginUser>.Failure(403, "Подтвердите email для входа");
             }
             users.LastLoginAt = DateTime.UtcNow;
             await _userManager.UpdateAsync(users);
@@ -205,7 +210,7 @@ namespace ShopApi
                 Roles = role.ToList()
             }); 
         }
-        public async Task<Result<bool>> ConfirmEmailAsync(string Email)
+        public async Task<Result<bool>> ConfirmEmailAsync(string Email, string token)
         {
             var user = await _userManager.FindByEmailAsync(Email);
             if(user == null)
@@ -213,7 +218,7 @@ namespace ShopApi
                 _logger.LogWarning("Пользователь по {userId} не найден", Email);
                 return Result<bool>.Failure(404, "Пользователь не найден");
             }
-            var token = 
+             
             var result = await _userManager.ConfirmEmailAsync(user, token);
             if (result.Succeeded)
             {
