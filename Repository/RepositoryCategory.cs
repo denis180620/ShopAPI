@@ -11,7 +11,7 @@ namespace ShopApi
         Task<Category> UpdateCategory(Category category);
         Task<bool> DeleteCategory(Category category);
         Task<Category> GetChildCategories(string name);
-        Task<Category> UpdateProduct(Category category);
+        Task<Category> UpdateProduct(Product product);
     }
     public class RepositoryCategory : ICategory
     {
@@ -106,19 +106,16 @@ namespace ShopApi
                 throw new Exception("Ошибка при получении категории по имени" + ex.Message);
             }
         }
-        public async Task<Category> UpdateProduct(Category category)
+        public async Task<Category> UpdateProduct(Product product)
         {
             try{
-            var categories = await _context.Categories.FirstOrDefaultAsync(c => c.Name == category.Name);
+            var categories = await _context.Categories.FirstOrDefaultAsync(c => c.Id == product.CategoryId);
 
             if(categories == null)
             {
-                throw new Exception($"Категория не найдена {category.Name}");
+                throw new Exception($"Категория не найдена {product.CategoryId}");
             }
-            foreach (var product in category.Products)
-            {
-                categories.Products.Add(product);
-            }
+            categories.Products.Add(product);
             await _context.SaveChangesAsync();
             return categories;
             }catch(Exception ex)

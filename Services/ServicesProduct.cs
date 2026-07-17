@@ -76,6 +76,10 @@ namespace ShopApi
             {
                 return Result<bool>.Failure(500, "Ошибка создания продукта повторите попытку позже или обратитесь к администратору");
             }
+            var categorys = await _category.GetCategoryById(product.CategoryId);
+            categorys.Products.Add(result);
+            await _category.UpdateCategory(categorys);
+
             return Result<bool>.Success(true, $"Продукт создан для посмотра товара {product.Name} перейдите в каталог товара");
         }
         catch(Exception ex)
@@ -260,6 +264,16 @@ namespace ShopApi
             {
                 return Result<bool>.Failure(404, "Продукт по указанному индетейикатору не найден");
             }
+            var result = await _product.DeleteProduct(id);
+            if (!result)
+            {
+                return Result<bool>.Failure(500, "Ошибка при удалении продукта, обратитесь к администратору");
+            }
+            var category = await _category.GetCategoryById(product.CategoryId);
+
+            category.Products.Remove(product);
+            await _category.UpdateCategory(category);
+            
             return Result<bool>.Success(true, "Продукт успешно удален");
         }
         public async Task<Result<Product>> GetAddQuantityProduct(Guid id, int quantity)
