@@ -1,0 +1,14 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/gh/anthropics/claude-code/main/schema/settings.json",
+  "inlineSuggestions": {
+    "enabled": true,
+    "mode": "auto"
+  },
+  "permissions": {
+    "allow": [
+      "read",
+      "search",
+      "inline"
+    ]
+  }
+}

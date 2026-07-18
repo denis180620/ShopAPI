@@ -17,7 +17,7 @@ namespace ShopApi
     }
     public class ResetPassword
     {
-        public Guid UserId {get; set;}
+        public string Email {get; set;}
         public string Token {get; set;}
         public string NewPassword {get; set;}
     }
@@ -52,6 +52,11 @@ namespace ShopApi
     {
         public string newPassword {get; set;}
         public string Token {get; set;}
+    }
+    public class ConfirmEmailDto
+    {
+        public required string Email { get; set; }
+        public required string Token { get; set; }
     }
     public class ResponseSender
     {

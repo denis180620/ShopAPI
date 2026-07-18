@@ -11,8 +11,6 @@ namespace ShopApi
 
         public string ProductName {get; set;}
 
-        public string ProductSky {get; set;}
-
         public decimal UnitPrice {get; set;}
         public decimal DiscountPrice {get; set;}
         public int Quantity {get; set;}

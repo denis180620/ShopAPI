@@ -45,7 +45,7 @@ namespace ShopApi
                     var email = await _service.SendAsync(user.Email, token);
                     if (email.IsSuccess)
                     {
-                        return Result<bool>.Success(true);
+                        return Result<bool>.Success(true, "Сообщение успешно отправлено");
                     }
                     return Result<bool>.Failure(500, "Ошибка отправки сообщения");
                 }

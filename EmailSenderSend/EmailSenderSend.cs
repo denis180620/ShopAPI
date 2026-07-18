@@ -48,7 +48,7 @@ namespace ShopApi{
                 await smtp.SendAsync(email);
                 await smtp.DisconnectAsync(true);
 
-                return Result<ResponseSender>.Success(new ResponseSender { Success = true });
+                return Result<ResponseSender>.Success(new ResponseSender { Success = true }, "Код отправлен");
             }
             catch (Exception ex)
             {

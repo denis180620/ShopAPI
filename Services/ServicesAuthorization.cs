@@ -23,8 +23,8 @@ namespace ShopApi
         Task<Result<ResponseUser>> GetCurrentUserAsync(Guid UserId);
         Task<Result<RefreshToken>>RefreshTokenAsync(string refreshToken);
         Task<Result<bool>> ConfirmEmailAsync(string Email, string token);
-        Task<Result<bool>> FogotPasswordAsync(string email);
-        Task<Result<bool>> ResetPasswordAsync(ResetPassword reset); 
+        Task<Result<bool>> ForgotPasswordAsync(string email);
+        Task<Result<bool>> ResetPasswordAsync(string Email, string token, string Password); 
     }
     public class AuthorizationServices : IAuthorization
     {
@@ -61,6 +61,7 @@ namespace ShopApi
                 Email = user.Email,
                 RegisterAt = DateTime.UtcNow,
                 DeliveryAddress = user.DeliveryAddress
+                
             };
             var result = await _userManager.CreateAsync(users, user.Password);
 
@@ -83,7 +84,7 @@ namespace ShopApi
                 Email = users.Email,
                 Name = users.FirstName,
                 Role = new List<string> {"User"}
-            });
+            }, "Пользователь успешно зарегистрирован");
         }
         public async Task<Result<ResponseLoginUser>> LoginUser(LoginUser user)
         {
@@ -125,7 +126,7 @@ namespace ShopApi
                 Name = users.FirstName,
                 BonusPoints = users.BonusPoints,
                 Role = role.ToList()
-            });
+            }, "Пользователь успешно вошел в систему");
         }
         public async Task<Result<bool>> LogOutAsync(string RefreshToken)
         {
@@ -142,7 +143,7 @@ namespace ShopApi
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Скссия для пользователя {UserId} остановленна", session.UserId);
             }
-            return Result<bool>.Success(true);
+            return Result<bool>.Success(true, "Сессия успешно завершена");
         }
         public async Task<Result<ResponseUser>> GetCurrentUserAsync(Guid UserId)
         {
@@ -163,7 +164,7 @@ namespace ShopApi
                 Orders = user.Orders,
                 DeliveryAddress = user.DeliveryAddress,
                 TotalSpent = user.TotalSpent
-            });
+            }, "Информация о пользователе успешно получена");
         }
 
         public async Task<Result<RefreshToken>> RefreshTokenAsync(string refreshToken)
@@ -208,7 +209,7 @@ namespace ShopApi
                 RefreshTokens = newsession.RefreshToken,
                 Email = user.Email,
                 Roles = role.ToList()
-            }); 
+            }, "Токен успешно обновлен"); 
         }
         public async Task<Result<bool>> ConfirmEmailAsync(string Email, string token)
         {
@@ -224,17 +225,17 @@ namespace ShopApi
             {
                 user.BonusPoints += 50;
                 await _userManager.UpdateAsync(user);
-                return Result<bool>.Success(true);
+                return Result<bool>.Success(true, "Email подтвержден");
             }
             return Result<bool>.Failure(400, "Ошибка подтверждения email");
         }
 
-        public async Task<Result<bool>> FogotPasswordAsync(string email)
+        public async Task<Result<bool>> ForgotPasswordAsync(string email)
         {
             var user = await _userManager.FindByEmailAsync(email);
             if(user == null)
             {
-                return Result<bool>.Success(true);
+                return Result<bool>.Success(true, "Если email существует, то код будет отправлен");
             }
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             var sander = await _emailService.SendAsync(user.Email, token);
@@ -243,17 +244,17 @@ namespace ShopApi
                 _logger.LogWarning("Ошибка отправки кода");
                 return Result<bool>.Failure(500, "Ошибка отправки кода, проверить Email на правильность");
             }
-            return Result<bool>.Success(true);
+            return Result<bool>.Success(true, "Код отправлен на email");
         }
-        public async Task<Result<bool>> ResetPasswordAsync(ResetPassword reset)
+        public async Task<Result<bool>> ResetPasswordAsync(string Email, string token, string Password)
         {
-            var user = await _userManager.FindByIdAsync(reset.UserId.ToString());
+            var user = await _userManager.FindByEmailAsync(Email);
             if (user == null)
             {
                 return Result<bool>.Failure(404, "Пользователь не найден");
             }
 
-            var result = await _userManager.ResetPasswordAsync(user, reset.Token, reset.NewPassword);
+            var result = await _userManager.ResetPasswordAsync(user, token, Password);
 
             if (result.Succeeded)
             {
@@ -268,7 +269,7 @@ namespace ShopApi
                 }
 
                 await _context.SaveChangesAsync();
-                return Result<bool>.Success(true);
+                return Result<bool>.Success(true, "Пароль успешно сброшен");
             }
 
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));

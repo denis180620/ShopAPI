@@ -13,7 +13,6 @@ namespace ShopApi
         public decimal PromoCodeDiscount {get; set;}
         public string promoCode {get; set;}
 
-        public int BonisPointsEarned {get; set;}
         public int BonisPointsUsed {get; set;}
 
         public OrderStatus Status {get; set;}
