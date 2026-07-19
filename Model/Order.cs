@@ -1,5 +1,22 @@
 namespace ShopApi
 {
+    public enum OrderStatus
+    {
+        Pending,
+        Processing,
+        Shipped,
+        Delivered,
+        Cancelled
+    }
+
+    public enum PaymentStatus
+    {
+        Pending,
+        Paid,
+        Failed,
+        Refunded
+    }
+
     public class Order
     {
         public int Id {get; set;}
@@ -24,21 +41,6 @@ namespace ShopApi
     public DateTime DeliveredAt {get; set;}
 
     public virtual ICollection<OrderItem> OrderItems {get; set;}
-        public enum OrderStatus
-        {
-            Pending,
-            Processing,
-            Shipped,
-            Delivered,
-            Cancelled
-        }
 
-        public enum PaymentStatus
-        {
-            Pending,
-            Paid,
-            Failed,
-            Refunded
-        }
     }
 }

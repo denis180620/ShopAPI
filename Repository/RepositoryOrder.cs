@@ -9,7 +9,7 @@ namespace ShopApi
         Task<Order> CreateOrder(Order order);
         Task<Order> GetOrderAsync(Guid OrderId);
         Task<List<Order>> GetOredrs();
-        Task<List<Order>> GetOrderStatus(Order.OrderStatus status);
+        Task<List<Order>> GetOrderStatus(OrderStatus status);
         Task<Order> PutOrder(Order order);
         Task<Order> GetOrdersByUserId(Guid UserId);
     }
@@ -50,7 +50,7 @@ namespace ShopApi
                 throw new Exception("Ошибка полчения заказа" + ex.Message);
             }
         }
-        public async Task<List<Order>> GetOrderStatus(Order.OrderStatus status)
+        public async Task<List<Order>> GetOrderStatus(OrderStatus status)
         {
             try{
             var order = await _context.Orders.Where(c => c.Status == status).ToListAsync();

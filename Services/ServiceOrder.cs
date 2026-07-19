@@ -9,7 +9,7 @@ namespace ShopApi
         Task<Result<Order>> UpdateAddProductsToOrder(Guid OrderId, Guid productId, int Quantity);
         Task<Result<Order>> GetOrderAsync(Guid OrderId);
         Task<Result<List<Order>>> GetOredrs();
-        Task<Result<List<Order>>> GetOrderStatus(Order.OrderStatus status);
+        Task<Result<List<Order>>> GetOrderStatus(string status);
         Task<Result<Order>> PutOrder(Order order);
         Task<Result<Order>> GetOrdersByUserId(Guid UserId);
         Task<Result<bool>> DeleteOrder(Guid OrderId);
@@ -71,13 +71,13 @@ namespace ShopApi
                 {
                     OrderId = Guid.NewGuid(),
                     UserId = order.UserId,
-                    Status = Order.OrderStatus.Pending,
+                    Status = OrderStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
                     PaidAt = DateTime.UtcNow,
                     TotalAmount =+ orderItem.TotalPrice,
                     DiscountAmount = orderItem.DiscountAmount,
                     OrderItems = new List<OrderItem> { orderItem },
-                    Paymentstatus = Order.PaymentStatus.Pending,
+                    Paymentstatus = PaymentStatus.Pending,
                     BonisPointsUsed = user.BonusPoints,
                     user = user,
                     promoCode = null
@@ -193,12 +193,18 @@ namespace ShopApi
             }
         }
 
-        public async Task<Result<List<Order>>> GetOrderStatus(Order.OrderStatus status)
+        public async Task<Result<List<Order>>> GetOrderStatus(string status)
         {
             try
             {
                 _logger.LogInformation("Получение заказов по статусу: {Status}", status);
-                var orders = await _order.GetOrderStatus(status);
+                if (!Enum.TryParse<OrderStatus>(status, true, out var orderStatus))
+                {
+                    return Result<List<Order>>.Failure(400, $"Некорректный статус: {status}. Допустимые значения: {string.Join(", ", Enum.GetNames<OrderStatus>())}");
+                }
+
+                var orders = await _order.GetOrderStatus(orderStatus);
+
                 if(orders == null || orders.Count == 0)
                 {
                     return Result<List<Order>>.Failure(404, $"Заказы со статусом {status} не найдены");
@@ -297,16 +303,16 @@ namespace ShopApi
                 {
                     return Result<bool>.Failure(404, "Заказ не найден");
                 }
-                if(order.Status == Order.OrderStatus.Cancelled)
+                if(order.Status == OrderStatus.Cancelled)
                 {
                     return Result<bool>.Failure(400, "Невозможно оплатить отмененный заказ");
                 }
-                if(order.Paymentstatus == Order.PaymentStatus.Paid)
+                if(order.Paymentstatus == PaymentStatus.Paid)
                 {
                     return Result<bool>.Failure(400, "Заказ уже оплачен");
                 }
-                order.Paymentstatus = Order.PaymentStatus.Paid;
-                order.Status = Order.OrderStatus.Processing;
+                order.Paymentstatus = PaymentStatus.Paid;
+                order.Status = OrderStatus.Processing;
                 order.PaidAt = DateTime.UtcNow;
                 var result = await _order.PutOrder(order);
                 if(result == null)
