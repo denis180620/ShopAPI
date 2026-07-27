@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Security;
 
 namespace ShopApi
 {
@@ -13,7 +14,8 @@ namespace ShopApi
         Task<Result<Order>> PutOrder(Order order);
         Task<Result<Order>> GetOrdersByUserId(Guid UserId);
         Task<Result<bool>> DeleteOrder(Guid OrderId);
-        Task<Result<bool>> BuyOrder(Guid OrderId);
+        Task<Result<string>> BuyOrder(Guid OrderId);
+        Task<Result<string>> GetStatusOrder(Guid OrderId);
     }
     public class ServiceOrder : IServiceOrder
     {
@@ -22,14 +24,16 @@ namespace ShopApi
         private readonly ILogger<ServiceOrder> _logger;
         private readonly IProduct _product;
         private readonly UserManager<User> _userManager;
+        private readonly IPaymentClient _client;
 
-        public ServiceOrder(IOrder order, IOrderItem orderItem, ILogger<ServiceOrder> logger, UserManager<User> userManager, IProduct product)
+        public ServiceOrder(IOrder order, IOrderItem orderItem, ILogger<ServiceOrder> logger, UserManager<User> userManager, IProduct product, IPaymentClient client)
         {
             _order = order;
             _orderItem = orderItem;
             _logger = logger;
             _userManager = userManager;
             _product = product;
+            _client = client;
         }
         public async Task<Result<Order>> CreateOrder(OrderRequestDTO order)
         {
@@ -289,43 +293,80 @@ namespace ShopApi
             }
         }
 
-        public async Task<Result<bool>> BuyOrder(Guid OrderId)
+        public async Task<Result<string>> BuyOrder(Guid OrderId)
         {
             try
             {
                 _logger.LogInformation("Покупка заказа: {OrderId}", OrderId);
                 if(OrderId == Guid.Empty)
                 {
-                    return Result<bool>.Failure(400, "Некорректный идентификатор заказа");
+                    return Result<string>.Failure(400, "Некорректный идентификатор заказа");
                 }
                 var order = await _order.GetOrderAsync(OrderId);
                 if(order == null)
                 {
-                    return Result<bool>.Failure(404, "Заказ не найден");
+                    return Result<string>.Failure(404, "Заказ не найден");
                 }
                 if(order.Status == OrderStatus.Cancelled)
                 {
-                    return Result<bool>.Failure(400, "Невозможно оплатить отмененный заказ");
+                    return Result<string>.Failure(400, "Невозможно оплатить отмененный заказ");
                 }
-                if(order.Paymentstatus == PaymentStatus.Paid)
+                if(order.Paymentstatus == PaymentStatus.Confirmed)
                 {
-                    return Result<bool>.Failure(400, "Заказ уже оплачен");
+                    return Result<string>.Failure(400, "Заказ уже оплачен");
                 }
-                order.Paymentstatus = PaymentStatus.Paid;
-                order.Status = OrderStatus.Processing;
-                order.PaidAt = DateTime.UtcNow;
-                var result = await _order.PutOrder(order);
-                if(result == null)
+                var payment = new CreatePaymentRequest
                 {
-                    return Result<bool>.Failure(500, "Ошибка при обновлении заказа");
+                    Amount = order.TotalAmount,
+                    OrderId = order.OrderId,
+                    UserId = order.UserId,
+                    Email = order.user.Email,
+                    Phone = order.user.PhoneNumber
+                };
+                var result = await _client.CreatePaymentAsync(payment);
+                if(result.Status == PaymentStatus.Pending || result.Status == PaymentStatus.Redirected)
+                {
+                    order.Paymentstatus = result.Status;
+                    order.PaymentUrl = result.PaymentUrl;
+                    order.Status = OrderStatus.Processing;
+                    var resultOrder = await _order.PutOrder(order);
+                    if(result == null)
+                    {
+                        return Result<string>.Failure(500, "Ошибка создания платежа");
+                    }
+                    return Result<string>.Success(order.PaymentUrl, "Платеж создан и ждет оплаты");
                 }
-                return Result<bool>.Success(true, "Заказ успешно оплачен");
+                order.Paymentstatus = result.Status;
+                order.Status = OrderStatus.Cancelled;
+                 await _order.PutOrder(order);
+                return Result<string>.Failure(500, "Ошибка создания платежа");
             }
             catch(Exception ex)
             {
                 _logger.LogError(ex, "Ошибка оплаты заказа");
-                return Result<bool>.Failure(500, "Ошибка оплаты заказа" + ex.Message);
+                return Result<string>.Failure(500, "Ошибка оплаты заказа" + ex.Message);
             }
+        }
+        public async Task<Result<string>> GetStatusOrder(Guid OrderId)
+        {
+            try
+            {
+                var result = await _client.GetStatusPaymentAsync(OrderId);
+                if(result == null)
+                {
+                    return Result<string>.Failure(500, "ошибка получения статуса оплаты");
+                }
+                var order = await _order.GetOrderAsync(OrderId);
+                order.Paymentstatus = result.Status;
+                await _order.PutOrder(order);
+                return Result<string>.Success(order.Paymentstatus.ToString(), "Статус получен");
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка получения заказа");
+                return Result<string>.Failure(500, "Ошибка получения заказа" + ex.Message);
+            }
+            
         }
     }
 }

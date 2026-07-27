@@ -9,13 +9,7 @@ namespace ShopApi
         Cancelled
     }
 
-    public enum PaymentStatus
-    {
-        Pending,
-        Paid,
-        Failed,
-        Refunded
-    }
+    
 
     public class Order
     {
@@ -23,7 +17,7 @@ namespace ShopApi
         public Guid OrderId {get; set;}
         public Guid UserId {get; set;}
         public  User user {get; set;}
-
+        public string PaymentUrl {get; set;}
         public decimal Subtotal {get; set;}
         public decimal DiscountAmount {get; set;}
         public decimal TotalAmount {get; set;}
