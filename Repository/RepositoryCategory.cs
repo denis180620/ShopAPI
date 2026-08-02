@@ -45,7 +45,7 @@ namespace ShopApi
             }
             catch(Exception ex)
             {
-                _logger.LogError(ex, "Ошибка получения котегории");
+                _logger.LogError(ex, "Ошибка получения категории");
                 throw new Exception("Ошибка при получении категории" + ex.Message);
             }                            
         }
@@ -87,7 +87,7 @@ namespace ShopApi
             }
             catch(Exception ex)
             {
-                _logger.LogError(ex, "Ошибка удадения категории");
+                _logger.LogError(ex, "Ошибка удаления категории");
                 throw new Exception("Ошибка удаления категории" + ex.Message);
             }
         }
@@ -120,7 +120,7 @@ namespace ShopApi
             return categories;
             }catch(Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при добавлени продукции в категорию");
+                _logger.LogError(ex, "Ошибка при добавлении продукции в категорию");
                 throw new Exception("Ошибка при добавлении продукции в категорию" + ex.Message);
             }
         }

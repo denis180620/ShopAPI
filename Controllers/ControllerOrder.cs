@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+
 namespace ShopApi
 {
     [ApiController]
@@ -16,184 +17,115 @@ namespace ShopApi
             _logger = logger;
         }
         [HttpPost]
-        public async Task<Result<IActionResult>> CreateOrder([FromBody] OrderRequestDTO order)
-        {
-            try
-            {
+        public async Task<IActionResult> CreateOrder([FromBody] OrderRequestDTO order)
+        {  
                 _logger.LogInformation("Принят запрос на создание заказа");
                 var result = await _order.CreateOrder(order);
                 if(!result.IsSuccess)
                 {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                    return BadRequest(result.ErrorMessage);
                 }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка создания заказа");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+                return Ok(result);
         }
         [HttpPut]
-        public async Task<Result<IActionResult>> UpdateOrder([FromBody] Guid OrderId, Guid productId, int Quantity)
+        public async Task<IActionResult> UpdateOrder([FromBody] Guid OrderId, Guid productId, int Quantity)
         {
-            try
-            {
-                _logger.LogInformation("Принят запрос на редоктирование заказа");
+            
+                _logger.LogInformation("Принят запрос на редактирование заказа");
                 var result = await _order.UpdateAddProductsToOrder(OrderId, productId, Quantity);
                 if (!result.IsSuccess)
                 {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                return BadRequest(result.ErrorMessage);
                 }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка редоктрования заказа");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+                return Ok(result); 
         } 
         [HttpGet("{id}")]
-        public async Task<Result<IActionResult>> GetOrderId(Guid Id)
-        {
-            try
-            {
+        public async Task<IActionResult> GetOrderId(Guid Id)
+        {   
                 _logger.LogInformation("Принят запрос на получение заказа");
                 var result = await _order.GetOrderAsync(Id);
                 if (!result.IsSuccess)
                 {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                    return BadRequest(result.ErrorMessage);
                 }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка получения заказа");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+                return Ok(result);  
         }
         [Authorize(Roles = "Admin,Manager")]
         [HttpGet]
-        public async Task<Result<IActionResult>> GetOrders()
+        public async Task<IActionResult> GetOrders()
         {
-            try
-            {
                 _logger.LogInformation("Принят запрос получение всех заказов");
                 var result = await _order.GetOredrs();
                 if (!result.IsSuccess)
                 {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                    return BadRequest(result.ErrorMessage);
                 }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка получения всех заказов");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+                return Ok(result);            
         }
         [Authorize(Roles = "Admin,Manager")]
         [HttpGet("status")]
-        public async Task<Result<IActionResult>> GetStatusResult(string status)
+        public async Task<ActionResult> GetStatusResult(string status)
         {
-            try
-            {
+           
+            
                 _logger.LogInformation("Принят запрос на получение заказов по статусу: {Status}", status);
 
                 var result = await _order.GetOrderStatus(status);
                 if (!result.IsSuccess)
                 {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                    return BadRequest(result.ErrorMessage);
                 }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message ?? $"Заказы со статусом {status} получены");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка получения заказов по статусу");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+                return Ok(result);
+            
         }
         [Authorize(Roles = "Admin,Manager")]
         [HttpPut]
-        public async Task<Result<IActionResult>> PutOrder([FromBody] Order order)
+        public async Task<IActionResult> PutOrder([FromBody] Order order)
         {
-            try
-            {
                 _logger.LogInformation("ПРинят запрос на изменения заказа");
                 var result = await _order.PutOrder(order);
                 if (!result.IsSuccess)
                 {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                    return BadRequest(result.ErrorMessage);
                 }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message );
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка обновления заказа");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+                return Ok(result);
         }
         [Authorize]
         [HttpGet]
-        public async Task<Result<IActionResult>> GetOrderUserId()
+        public async Task<IActionResult> GetOrderUserId()
         {
-            try
-            {
                 _logger.LogInformation("Принят запрос получение заказов клиента");
                 var userId = GetUserIdFromToken();
                 var result = await _order.GetOrdersByUserId(userId);
                 if (!result.IsSuccess)
                 {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                    return BadRequest(result.ErrorMessage);
                 }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка получения заказов");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+                return Ok(result);   
         }
         [Authorize(Roles = "Admin,Manager")]
         [HttpDelete("{id}")]
-        public async Task<Result<IActionResult>> DeleteOrder(Guid Id)
-        {
-            try
-            {
+        public async Task<IActionResult> DeleteOrder(Guid Id)
+        {                       
                 _logger.LogInformation("Принят запрос на удаление заказа");
                 var result = await _order.DeleteOrder(Id);
                 if (!result.IsSuccess)
                 {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                    return BadRequest(result.ErrorMessage);
                 }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка удаления заказа");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+                return Ok(result);           
         }
         [Authorize]
         [HttpGet("/{id}")]
-        public async Task<Result<IActionResult>> BuyOrder(Guid Id)
-        {
-            try
-            {
+        public async Task<IActionResult> BuyOrder(Guid Id)
+        { 
                 _logger.LogInformation("Получен запрос на оплату заказа");
                 var result = await _order.BuyOrder(Id);
                 if (!result.IsSuccess)
                 {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                    return BadRequest(result.ErrorMessage);
                 }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка оплаты заказа");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
-
+                return Ok(result);
         }
         private Guid GetUserIdFromToken()
         {
@@ -203,4 +135,4 @@ namespace ShopApi
             return userId;
         }
     }
-    }
+}

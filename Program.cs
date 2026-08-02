@@ -71,7 +71,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:5173")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -93,6 +93,9 @@ builder.Services.AddScoped<IServiceConfirmEmail, ServiceConfirmEmail>();
 
 // Регистрация Email сервиса
 builder.Services.AddScoped<IEmailService, EmailSerives>();
+
+// Регистрация middleware для обработки исключений
+builder.Services.AddScoped<GlobalExceptionHandler>();
 var paymentBaseUrl = builder.Configuration["PaymentService:BaseUrl"];
 if (string.IsNullOrEmpty(paymentBaseUrl))
 {
@@ -139,6 +142,9 @@ app.UseHttpsRedirection();
 
 // Использование CORS
 app.UseCors("AllowAll");
+
+// Глобальная обработка исключений
+app.UseMiddleware<GlobalExceptionHandler>();
 
 // Использование Authentication и Authorization (важен порядок!)
 app.UseAuthentication();

@@ -33,16 +33,15 @@ namespace ShopApi
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly IConfiguration configuration;
         private readonly AppDbContext _context;
-        private readonly User _user;
+
         private readonly IEmailService _emailService;
-        public AuthorizationServices(ILogger<AuthorizationServices> logger, UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager, IConfiguration configuration, AppDbContext context, User user, IEmailService emailService)
+        public AuthorizationServices(ILogger<AuthorizationServices> logger, UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager, IConfiguration configuration, AppDbContext context, IEmailService emailService)
         {
             _logger = logger;
             _userManager = userManager;
             _roleManager = roleManager;
             this.configuration = configuration;
             _context = context;
-            _user = user;
             _emailService = emailService;
         }
 
@@ -71,10 +70,21 @@ namespace ShopApi
                 _logger.LogError("ОШибка регистрации {Errors}", error);
                 return Result<ResponseLoginUser>.Failure(500, $"Ошибка регистрации: {error}");
             }
-            await _userManager.AddToRoleAsync(users, "User");
+
+            // Определяем роль: если пустая или null → User, иначе переданная роль
+            var role = string.IsNullOrWhiteSpace(user.Role) ? "User" : user.Role;
+
+            // Проверяем, существует ли роль, если нет — создаем
+            if (!await _roleManager.RoleExistsAsync(role))
+            {
+                await _roleManager.CreateAsync(new IdentityRole<Guid>(role));
+            }
+
+            await _userManager.AddToRoleAsync(users, role);
 
             var session = await CreateSessionAsync(users);
-            _logger.LogInformation("Пользователь зарегестрирован: {Email} {UserId}", users.Email, users.Id);
+            var userRole = await _userManager.GetRolesAsync(users);
+            _logger.LogInformation("Пользователь зарегестрирован: {Email} {UserId} с ролью {Role}", users.Email, users.Id, role);
 
             return Result<ResponseLoginUser>.Success(new ResponseLoginUser
             {
@@ -83,7 +93,7 @@ namespace ShopApi
                 Expires = DateTime.UtcNow.AddMinutes(configuration.GetValue<int>("JwtSetting:ExpirationMinutes", 60)),
                 Email = users.Email,
                 Name = users.FirstName,
-                Role = new List<string> {"User"}
+                Role = userRole.ToList()
             }, "Пользователь успешно зарегистрирован");
         }
         public async Task<Result<ResponseLoginUser>> LoginUser(LoginUser user)

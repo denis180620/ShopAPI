@@ -18,119 +18,85 @@ namespace ShopApi
         }
     
     [HttpPost]
-        public async Task<Result<IActionResult>> CreateProduct([FromBody] ResponseProduct product)
+        public async Task<IActionResult> CreateProduct([FromBody] ResponseProduct product)
         {
-            try
+            _logger.LogInformation("Принят запрос на создание продукта");
+            var result = await _product.CreateProduct(product);
+            if (!result.IsSuccess)
             {
-                _logger.LogInformation("Принят запрос на создании продукта");
-                var result = await _product.CreateProduct(product);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка создания продукции");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+            return Ok(new { data = result.Data, message = result.Message });
         }
         [HttpPut]
-        public async Task<Result<IActionResult>> UpdateProduct([FromBody] ResponseProduct product)
+        public async Task<IActionResult> UpdateProduct([FromBody] ResponseProduct product)
         {
-            try
+            _logger.LogInformation("Принят запрос на изменение продукта {id}", product.Id);
+            var result = await _product.UpdateProduct(product);
+            if (!result.IsSuccess)
             {
-                _logger.LogInformation("ПРинят запрос на измения продукта {id}", product.Id);
-                var result = await _product.UpdateProduct(product);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка создания продукции");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+            return Ok(new { data = result.Data, message = result.Message });
         }
         [HttpPut("{Id}/{quantity}")]
-        public async Task<Result<IActionResult>> GetAddQuantutyProduct(Guid Id, int quantity)
+        public async Task<IActionResult> GetAddQuantityProduct(Guid Id, int quantity)
         {
-            try
+            _logger.LogInformation("Принят запрос на добавление количества продукта");
+            var result = await _product.GetAddQuantityProduct(Id, quantity);
+            if (!result.IsSuccess)
             {
-                _logger.LogInformation("Принят запрос на добовление количества продукции");
-                var result = await _product.GetAddQuantityProduct(Id, quantity);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка добавления продукции");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+            return Ok(new { data = result.Data, message = result.Message });
         }
+        [HttpGet("admin")]
+        public async Task<IActionResult> GetAdminProduct()
+        {
+            _logger.LogInformation("Принят запрос на получение продуктов администратора");
+            var userId = GetUserIdFromToken();
+            var result = await _product.GetAdministratorProduct(userId);
+            if (!result.IsSuccess)
+            {
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
+            }
+            return Ok(new { data = result.Data, message = result.Message });
+        }
+
         [HttpGet]
-        public async Task<Result<IActionResult>> GetAdminProduct()
+        public async Task<IActionResult> GetAllProduct([FromQuery] PaginationRequest request)
         {
-            try
+            _logger.LogInformation("Принят запрос на получение всех продуктов");
+            var result = await _product.GetAllProduct(request);
+            if (!result.IsSuccess)
             {
-                _logger.LogInformation("Принят запрос на получение продукци");
-                var userId = GetUserIdFromToken();
-                var result = await _product.GetAdministratorProduct(userId);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка получения продукции");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+            return Ok(new { data = result.Data, message = result.Message });
         }
+
         [HttpGet("{Id}")]
-        public async Task<Result<IActionResult>> GetProductById(Guid Id)
+        public async Task<IActionResult> GetProductById(Guid Id)
         {
-            try
+            _logger.LogInformation("Принят запрос на получение продукта");
+            var result = await _product.GetProductById(Id);
+            if (!result.IsSuccess)
             {
-                _logger.LogInformation("Принят запрос на получение продукта");
-                var result = await _product.GetProductById(Id);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка получения продукции");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+            return Ok(new { data = result.Data, message = result.Message });
         }
+
         [HttpDelete("{Id}")]
-        public async Task<Result<IActionResult>> DeleteProductId(Guid Id)
+        public async Task<IActionResult> DeleteProductId(Guid Id)
         {
-            try
+            _logger.LogInformation("Принят запрос на удаление продукта");
+            var result = await _product.DeleteProduct(Id);
+            if (!result.IsSuccess)
             {
-                _logger.LogInformation("Принят запрос на удаление продукта");
-                var result = await _product.DeleteProduct(Id);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message);
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка удаления продукции");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+            return Ok(new { data = result.Data, message = result.Message });
         }
 
         private Guid GetUserIdFromToken()

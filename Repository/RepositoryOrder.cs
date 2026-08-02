@@ -47,7 +47,7 @@ namespace ShopApi
             catch(Exception ex)
             {
                 _logger.LogError("Ошибка получения заказа");
-                throw new Exception("Ошибка полчения заказа" + ex.Message);
+                throw new Exception("Ошибка получения заказа" + ex.Message);
             }
         }
         public async Task<List<Order>> GetOrderStatus(OrderStatus status)

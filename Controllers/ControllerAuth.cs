@@ -17,139 +17,111 @@ namespace ShopApi
         }
 
         [HttpPost("register")]
-        public async Task<Result<IActionResult>> CreateUserAsync([FromBody] RegisterUser user)
+        public async Task<IActionResult> CreateUserAsync([FromBody] RegisterUser user)
         {
-            try{
             _logger.LogInformation("Принят запрос на создание пользователя {name}", user.FirstName);
             var result = await _auth.RegisterAsync(user);
             if(!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                SetRefreshTokenCookie(result.data.RefreshToken);
-            return Result<IActionResult>.Success(Ok(result.data), result.Message ?? "Пользователь успешно создан");
-            }
-            catch(Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при создании пользователя");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
+            SetRefreshTokenCookie(result.Data.RefreshToken);
+            return Ok(new { data = result.Data, message = result.Message ?? "Пользователь успешно создан" });
+        }
+
+        [HttpPost("create-manager")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateManagerAsync([FromBody] RegisterUser user)
+        {
+            _logger.LogInformation("Принят запрос на создание менеджера {name} от администратора", user.FirstName);
+
+            // Принудительно устанавливаем роль Manager
+            user.Role = "Manager";
+
+            var result = await _auth.RegisterAsync(user);
+            if(!result.IsSuccess)
+            {
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
+            }
+            return Ok(new { data = result.Data, message = result.Message ?? "Менеджер успешно создан" });
         }
         [HttpPost("login")]
-        public async Task<Result<IActionResult>> LoginUser([FromBody] LoginUser user)
+        public async Task<IActionResult> LoginUser([FromBody] LoginUser user)
         {
-            try
+            _logger.LogInformation("Принят запрос на вход пользователя {name}", user.Email);
+            var result = await _auth.LoginUser(user);
+            if (!result.IsSuccess)
             {
-                _logger.LogInformation("Принят запрос на вход пользователя {name}", user.Email);
-                var result = await _auth.LoginUser(user);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                SetRefreshTokenCookie(result.data.RefreshToken);
-                return Result<IActionResult>.Success(Ok(result.data), result.Message ?? "Успешный вход");
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            catch(Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка входа в систему");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+            SetRefreshTokenCookie(result.Data.RefreshToken);
+            return Ok(new { data = result.Data, message = result.Message ?? "Успешный вход" });
         }
         [HttpPost("logout")]
         [Authorize]
-        public async Task<Result<IActionResult>> LogOutAsync()
+        public async Task<IActionResult> LogOutAsync()
         {
-            try
+            _logger.LogInformation("Принят запрос на выход пользователя из системы");
+            var refreshToken = Request.Cookies["refreshToken"];
+            if (string.IsNullOrEmpty(refreshToken))
             {
-                _logger.LogInformation("Принят запрос на выход пользователя из системы");
-                var refreshToken = Request.Cookies["refreshToken"];
-                if (string.IsNullOrEmpty(refreshToken))
-                {
-                    return Result<IActionResult>.Failure(400, "Refresh token not found");
-                }
-                var result = await _auth.LogOutAsync(refreshToken);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message ?? "Успешный выход");
+                return BadRequest(new { error = "Refresh token not found" });
             }
-            catch(Exception ex)
+            var result = await _auth.LogOutAsync(refreshToken);
+            if (!result.IsSuccess)
             {
-                _logger.LogError(ex, "Ошибка вызхода из системы");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
+            return Ok(new { data = result.Data, message = result.Message ?? "Успешный выход" });
         }
         [HttpPost("me")]
         [Authorize]
-        public async Task<Result<IActionResult>> GetCurrentUser()
+        public async Task<IActionResult> GetCurrentUser()
         {
             var user = User.Claims.FirstOrDefault(item => item.Type == ClaimTypes.NameIdentifier);
-            if(user == null || !Guid.TryParse(user.Value, out var userId)) 
+            if(user == null || !Guid.TryParse(user.Value, out var userId))
             {
-                return Result<IActionResult>.Failure(403, "Invalid token");
+                return StatusCode(403, new { error = "Invalid token" });
             }
             var result = await _auth.GetCurrentUserAsync(userId);
             if (!result.IsSuccess)
             {
-                return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Result<IActionResult>.Success(Ok(result.data), result.Message ?? "Данные пользователя получены");
+            return Ok(new { data = result.Data, message = result.Message ?? "Данные пользователя получены" });
         }
         [HttpPost("forgot")]
-        public async Task<Result<IActionResult>> ForgotPasswordAsync([FromBody] string email)
+        public async Task<IActionResult> ForgotPasswordAsync([FromBody] string email)
         {
-            try{
             _logger.LogInformation("Получен запрос на отправку кода подтверждения почты");
             var result = await _auth.ForgotPasswordAsync(email);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message ?? "Код подтверждения отправлен");
-            }
-            catch (Exception ex)
+            if (!result.IsSuccess)
             {
-                _logger.LogError(ex, "Ошибка отправки токена");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
+            return Ok(new { data = result.Data, message = result.Message ?? "Код подтверждения отправлен" });
         }
         [HttpPost("confirm")]
-        public async Task<Result<IActionResult>> ConfirmEmailAsync([FromBody] ConfirmEmailDto request)
+        public async Task<IActionResult> ConfirmEmailAsync([FromBody] ConfirmEmailDto request)
         {
-            try{
-                _logger.LogInformation("Получен запрос на подтверждение токена");
-                var result = await _auth.ConfirmEmailAsync(request.Email, request.Token);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message ?? "Email подтвержден");
-            }
-            catch (Exception ex)
+            _logger.LogInformation("Получен запрос на подтверждение токена");
+            var result = await _auth.ConfirmEmailAsync(request.Email, request.Token);
+            if (!result.IsSuccess)
             {
-                _logger.LogError(ex, "Ошибка получения и проверки токена");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
+            return Ok(new { data = result.Data, message = result.Message ?? "Email подтвержден" });
         }
         [HttpPost("reset")]
-        public async Task<Result<IActionResult>> ResetPassword([FromBody] ResetPassword request)
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPassword request)
         {
-            try
+            _logger.LogInformation("Получен запрос на сброс пароля");
+            var result = await _auth.ResetPasswordAsync(request.Email, request.Token, request.NewPassword);
+            if (!result.IsSuccess)
             {
-                _logger.LogInformation("Получен запрос на сброс пароля");
-                var result = await _auth.ResetPasswordAsync(request.Email, request.Token, request.NewPassword);
-                if (!result.IsSuccess)
-                {
-                    return Result<IActionResult>.Failure(result.StatusCode, result.ErrorMessage);
-                }
-                return Result<IActionResult>.Success(Ok(result.data), result.Message ?? "Пароль успешно сброшен");
+                return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка получения и проверки токена");
-                return Result<IActionResult>.Failure(500, "Внутренняя ошибка сервера");
-            }
+            return Ok(new { data = result.Data, message = result.Message ?? "Пароль успешно сброшен" });
         }
         private void SetRefreshTokenCookie(string RefreshToken)
         {
