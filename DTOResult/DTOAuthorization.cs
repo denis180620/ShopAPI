@@ -7,7 +7,7 @@ namespace ShopApi
         public string DeliveryAddress {get; set;}
         public string Email {get; set;}
         public string Role {get; set;} = "User"; // По умолчанию User
-
+        public string UserName {get; set;}
     }
     public class LoginUser
     {

@@ -59,8 +59,8 @@ namespace ShopApi
                 FirstName = user.FirstName,
                 Email = user.Email,
                 RegisterAt = DateTime.UtcNow,
-                DeliveryAddress = user.DeliveryAddress
-                
+                DeliveryAddress = user.DeliveryAddress,
+                UserName = user.UserName
             };
             var result = await _userManager.CreateAsync(users, user.Password);
 
@@ -81,6 +81,10 @@ namespace ShopApi
             }
 
             await _userManager.AddToRoleAsync(users, role);
+
+            // Auto-confirm email for testing purposes
+            users.EmailConfirmed = true;
+            await _userManager.UpdateAsync(users);
 
             var session = await CreateSessionAsync(users);
             var userRole = await _userManager.GetRolesAsync(users);
@@ -289,6 +293,7 @@ namespace ShopApi
         {
             var accessToken = await GenerateAccessToken(user);
             var refreshToken = GenerateRefreshToken();
+            var roles = await _userManager.GetRolesAsync(user);
 
             var refreshTokenExpirationDays = configuration.GetValue<int>("JwtSetting:RefreshTokenExpirationDays", 7);
             var accessTokenExpirationMinutes = configuration.GetValue<int>("JwtSettingd: ExpirationMinutes", 60);
@@ -297,10 +302,18 @@ namespace ShopApi
             {
                 UserId = user.Id,
                 RefreshTokens = refreshToken,
+                AccessToken = accessToken,
+                Token = refreshToken,
                 Created = DateTime.UtcNow,
                 Expires = DateTime.UtcNow.AddDays(refreshTokenExpirationDays),
-                IpAddress = IpAddress,
-                UserAgent = UserAgent
+                IpAddress = IpAddress ?? "127.0.0.1",
+                UserAgent = UserAgent ?? "Unknown",
+                Name = user.FirstName,
+                Email = user.Email,
+                Roles = roles.ToList(),
+                IsActive = true,
+                IsExpired = false,
+                ReplacedByToken = string.Empty
             };
             await _context.RefreshTokens.AddAsync(session);
             await _context.SaveChangesAsync();

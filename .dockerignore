@@ -1,0 +1,49 @@
+# Ignore build outputs
+bin/
+obj/
+out/
+
+# Ignore Visual Studio files
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Ignore ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# Ignore Node.js (if frontend exists)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Ignore Git
+.git/
+.gitignore
+
+# Ignore Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Ignore test results
+TestResults/
+*.trx
+
+# Ignore user-specific files
+*.cache
+*.log
+
+# Ignore macOS
+.DS_Store
+
+# Ignore Linux
+*~
+
+# Ignore appsettings with sensitive data
+appsettings.Development.json
+appsettings.Production.json

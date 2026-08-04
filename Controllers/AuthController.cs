@@ -6,11 +6,11 @@ namespace ShopApi
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ControllerAuth : ControllerBase
+    public class AuthController : ControllerBase
     {
         private readonly IAuthorization _auth;
-        ILogger<ControllerAuth> _logger;
-        public ControllerAuth(IAuthorization authorization, ILogger<ControllerAuth> logger)
+        ILogger<AuthController> _logger;
+        public AuthController(IAuthorization authorization, ILogger<AuthController> logger)
         {
             _auth = authorization;
             _logger = logger;
@@ -26,9 +26,9 @@ namespace ShopApi
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
             SetRefreshTokenCookie(result.Data.RefreshToken);
-            return Ok(new { data = result.Data, message = result.Message ?? "Пользователь успешно создан" });
-        }
 
+            return Ok(result);
+        }
         [HttpPost("create-manager")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateManagerAsync([FromBody] RegisterUser user)
@@ -43,7 +43,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message ?? "Менеджер успешно создан" });
+            return Ok(result);
         }
         [HttpPost("login")]
         public async Task<IActionResult> LoginUser([FromBody] LoginUser user)
@@ -55,7 +55,8 @@ namespace ShopApi
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
             SetRefreshTokenCookie(result.Data.RefreshToken);
-            return Ok(new { data = result.Data, message = result.Message ?? "Успешный вход" });
+
+            return Ok(result);
         }
         [HttpPost("logout")]
         [Authorize]
@@ -72,7 +73,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message ?? "Успешный выход" });
+            return Ok(result);
         }
         [HttpPost("me")]
         [Authorize]
@@ -88,7 +89,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message ?? "Данные пользователя получены" });
+            return Ok(result);
         }
         [HttpPost("forgot")]
         public async Task<IActionResult> ForgotPasswordAsync([FromBody] string email)
@@ -99,7 +100,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message ?? "Код подтверждения отправлен" });
+            return Ok(result);
         }
         [HttpPost("confirm")]
         public async Task<IActionResult> ConfirmEmailAsync([FromBody] ConfirmEmailDto request)
@@ -110,7 +111,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message ?? "Email подтвержден" });
+            return Ok(result);
         }
         [HttpPost("reset")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPassword request)
@@ -121,7 +122,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message ?? "Пароль успешно сброшен" });
+            return Ok(result);
         }
         private void SetRefreshTokenCookie(string RefreshToken)
         {

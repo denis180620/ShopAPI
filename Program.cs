@@ -120,6 +120,7 @@ builder.Services.AddHttpClient<IPaymentClient, PaymentClient>(client =>
                     retryAttempt, timespan.TotalMilliseconds);
             });
 });
+
 // Добавление контроллеров
 builder.Services.AddControllers();
 
@@ -129,7 +130,60 @@ builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+// Создание ролей и первого админа при старте приложения                                                                                                                                                                             
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+    var userManager = services.GetRequiredService<UserManager<User>>();
+    var context = services.GetRequiredService<AppDbContext>();
 
+    try
+    {
+        // Создаем роли если не существуют
+        if (!await context.Roles.AnyAsync())
+        {
+            await roleManager.CreateAsync(new IdentityRole<Guid>("Admin"));
+            await roleManager.CreateAsync(new IdentityRole<Guid>("User"));
+            await roleManager.CreateAsync(new IdentityRole<Guid>("Manager"));
+            Console.WriteLine("Роли созданы: Admin, User, Manager");
+        }
+
+        // Создаем админа если не существует                                                                                                                                                                                         
+        var existingAdmin = await userManager.FindByEmailAsync("admin@shop.com");
+        if (existingAdmin == null)
+        {
+            var adminUser = new User
+            {
+                UserName = "admin",
+                Email = "admin@shop.com",
+                FirstName = "Super",
+                EmailConfirmed = true,
+                RegisterAt = DateTime.UtcNow,
+                DeliveryAddress = "Admin Office"
+            };
+
+            var result = await userManager.CreateAsync(adminUser, "AdminPass123!");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(adminUser, "Admin");
+                Console.WriteLine("Админ создан: admin@shop.com / AdminPass123!");
+            }
+        }
+        else
+        {
+            if (!await userManager.IsInRoleAsync(existingAdmin, "Admin"))
+            {
+                await userManager.AddToRoleAsync(existingAdmin, "Admin");
+                Console.WriteLine("Роль Admin добавлена admin@shop.com");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Ошибка при создании ролей и админа: {ex.Message}");
+    }
+}
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {

@@ -27,7 +27,7 @@ namespace ShopApi
             {
                 return Result<bool>.Failure(400, "Некорректные данные");
             }
-            if(category.ParentCategoryId != null)
+            if(category.ParentCategoryId != null && category.ParentCategoryId > 0)
             {
                 var parentCategory = await _category.GetCategoryById((int)category.ParentCategoryId);
                 if(parentCategory == null)
@@ -40,7 +40,7 @@ namespace ShopApi
                 Name = category.Name,
                 Description = category.Description,
                 NameEn = category.NameEn,
-                ParentCategoryId = parentCategory.ParentCategoryId,
+                ParentCategoryId = parentCategory.Id,
                 NameRu = category.Name,
                 DisplayOrder = 0
             };

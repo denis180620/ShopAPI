@@ -7,11 +7,11 @@ namespace ShopApi
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Admin,Manager")]
-    public class ControllerProduct : ControllerBase
+    public class ProductController : ControllerBase
     {
         private readonly IServiceProduct _product;
-        private ILogger<ControllerProduct> _logger;
-        public ControllerProduct(IServiceProduct product, ILogger<ControllerProduct> logger)
+        private ILogger<ProductController> _logger;
+        public ProductController(IServiceProduct product, ILogger<ProductController> logger)
         {
             _product = product;
             _logger = logger;

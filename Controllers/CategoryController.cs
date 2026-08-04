@@ -8,11 +8,11 @@ namespace ShopApi
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class ControllerCategory : ControllerBase
+    public class CategoryController : ControllerBase
     {
         private readonly IServiceCategory _category;
-        private readonly ILogger<ControllerCategory> _logger;
-        public ControllerCategory(IServiceCategory category, ILogger<ControllerCategory> logger)
+        private readonly ILogger<CategoryController> _logger;
+        public CategoryController(IServiceCategory category, ILogger<CategoryController> logger)
         {
             _category = category;
             _logger = logger;
@@ -42,7 +42,7 @@ namespace ShopApi
             return Ok(new { data = result.Data, message = result.Message });
         }
         [AllowAnonymous]
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> GetCategoryById(int id)
         {
             _logger.LogInformation("Принят запрос на получение категории");
@@ -78,7 +78,7 @@ namespace ShopApi
             return Ok(new { data = result.Data, message = result.Message });
         }
         [Authorize(Roles = "Admin")]
-        [HttpGet("/{name}")]
+        [HttpGet("children/{name}")]
         public async Task<IActionResult> GetChildCategories(string name)
         {
             _logger.LogInformation("Принят запрос на получение дочерних категорий");

@@ -30,6 +30,8 @@ namespace ShopApi
         public async Task<Product> CreateProduct(Product product)
         {
             try{
+            _logger.LogInformation("Создание продукта: Id={Id}, UserId={UserId}, Name={Name}, CategoryId={CategoryId}",
+                product.Id, product.UserId, product.Name, product.CategoryId);
             await _context.Products.AddAsync(product);
             await _context.SaveChangesAsync();
             return product;

@@ -57,14 +57,16 @@ namespace ShopApi
             }
             var Resultproduct = new Product
             {
+                Id = Guid.NewGuid(),
                 UserId = product.UserId,
                 Name = product.Name,
                 Price = product.Price,
                 DiscountPrice = product.DiscountPrice,
                 Description = product.Description,
                 StockQuantity = product.StockQuantity,
+                ImageURL = product.ImageURL,
                 CategoryId = product.CategoryId,
-                Category = category,
+                // Category не устанавливаем - связь создаётся через CategoryId
                 NameRu = product.Name,
                 NameEn = product.NameEn,
                 DescriptionRu = product.Description,
@@ -76,9 +78,9 @@ namespace ShopApi
             {
                 return Result<bool>.Failure(500, "Ошибка создания продукта повторите попытку позже или обратитесь к администратору");
             }
-            var categorys = await _category.GetCategoryById(product.CategoryId);
-            categorys.Products.Add(result);
-            await _category.UpdateCategory(categorys);
+
+            // Связь продукта с категорией создаётся автоматически через CategoryId
+            // EF Core загрузит продукты при обращении к category.Products
 
             return Result<bool>.Success(true, $"Продукт создан для посмотра товара {product.Name} перейдите в каталог товара");
         }
