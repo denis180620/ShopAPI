@@ -21,26 +21,26 @@ ShopApi/
 
 ```bash
 # Сборка и запуск
-docker-compose up -d
+docker compose up -d
 
 # Просмотр логов
-docker-compose logs -f shopapi
+docker compose logs -f shopapi
 
 # Остановка
-docker-compose down
+docker compose down
 
 # Полная очистка (включая volumes)
-docker-compose down -v
+docker compose down -v
 ```
 
 ### Development режим
 
 ```bash
 # Запуск с development конфигурацией
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # Пересборка после изменений кода
-docker-compose -f docker-compose.dev.yml up --build -d
+docker compose -f docker-compose.dev.yml up --build -d
 
 # Просмотр логов
 docker-compose -f docker-compose.dev.yml logs -f
@@ -112,7 +112,7 @@ docker-compose exec shopapi curl http://localhost/health
 
 ```bash
 # Подключение к PostgreSQL
-docker-compose exec postgres psql -U postgres -d ShopDb
+docker compose exec postgres psql -U postgres -d ShopDb
 
 # Создание резервной копии
 docker-compose exec postgres pg_dump -U postgres ShopDb > backup.sql
@@ -155,5 +155,5 @@ ports:
 docker-compose build --no-cache
 
 # Пересобрать только shopapi
-docker-compose build shopapi
+docker compose build shopapi
 ```

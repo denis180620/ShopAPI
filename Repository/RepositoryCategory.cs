@@ -6,7 +6,7 @@ namespace ShopApi
     public interface ICategory
     {
         Task<Category> CreateCategory(Category category);
-        Task<Category> GetCategoryById(int id);
+        Task<Category> GetCategoryById(Guid? id);
         Task<List<Category>> GetAllCategories();
         Task<Category> UpdateCategory(Category category);
         Task<bool> DeleteCategory(Category category);
@@ -35,7 +35,7 @@ namespace ShopApi
                 throw new Exception("Ошибка при создании категории:" +ex.Message);
             }
         }
-        public async Task<Category> GetCategoryById(int id)
+        public async Task<Category> GetCategoryById(Guid? id)
         {
             try{
             var category = await _context.Categories

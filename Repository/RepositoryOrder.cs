@@ -41,7 +41,7 @@ namespace ShopApi
         {
             try
             {
-                var order = await _context.Orders.FirstOrDefaultAsync(c=> c.OrderId == OrderId);
+                var order = await _context.Orders.FirstOrDefaultAsync(c=> c.Id == OrderId);
                 return order;
             }
             catch(Exception ex)

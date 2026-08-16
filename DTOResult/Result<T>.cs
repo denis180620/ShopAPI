@@ -2,6 +2,10 @@ using System.Net;
 
 namespace ShopApi
 {
+    /// <summary>
+    /// Класс обертка для возрата ответа из сервиса с моделью что оборачивать
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class Result<T>
     {
         public int StatusCode {get; set;}

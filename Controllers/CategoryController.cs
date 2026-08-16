@@ -27,7 +27,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
         [Authorize(Roles = "Admin")]
         [HttpPut]
@@ -39,11 +39,11 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
         [AllowAnonymous]
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetCategoryById(int id)
+        [HttpGet("{id:Guid}")]
+        public async Task<IActionResult> GetCategoryById(Guid id)
         {
             _logger.LogInformation("Принят запрос на получение категории");
             var result = await _category.GetCategoryById(id);
@@ -51,7 +51,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
         [AllowAnonymous]
         [HttpGet]
@@ -63,11 +63,11 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteCategory(int id)
+        public async Task<IActionResult> DeleteCategory(Guid id)
         {
             _logger.LogInformation("Принят запрос на удаление категории");
             var result = await _category.DeleteCategory(id);
@@ -75,7 +75,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
         [Authorize(Roles = "Admin")]
         [HttpGet("children/{name}")]
@@ -87,7 +87,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
     }
 }

@@ -8,14 +8,14 @@ namespace ShopApi
     {
         Task<Result<Order>> CreateOrder(OrderRequestDTO order);
         Task<Result<Order>> UpdateAddProductsToOrder(Guid OrderId, Guid productId, int Quantity);
-        Task<Result<Order>> GetOrderAsync(Guid OrderId);
+        Task<Result<OrderResponseDto>> GetOrderAsync(Guid OrderId);
         Task<Result<List<Order>>> GetOredrs();
         Task<Result<List<Order>>> GetOrderStatus(string status);
-        Task<Result<Order>> PutOrder(Order order);
         Task<Result<Order>> GetOrdersByUserId(Guid UserId);
         Task<Result<bool>> DeleteOrder(Guid OrderId);
         Task<Result<string>> BuyOrder(Guid OrderId);
         Task<Result<string>> GetStatusOrder(Guid OrderId);
+        Task<Result<Order>> PutOrder(Order order);
     }
     public class ServiceOrder : IServiceOrder
     {
@@ -35,6 +35,11 @@ namespace ShopApi
             _product = product;
             _client = client;
         }
+        /// <summary>
+        /// Создание заказа
+        /// </summary>
+        /// <param name="order"></param>
+        /// <returns></returns>
         public async Task<Result<Order>> CreateOrder(OrderRequestDTO order)
         {
             try
@@ -53,48 +58,53 @@ namespace ShopApi
                 {
                     return Result<Order>.Failure(400, "Недостаточно товара на складе");
                 }
+
                 var user = await _userManager.FindByIdAsync(order.UserId.ToString());
+
                 if(user == null)
                 {
                     return Result<Order>.Failure(404, "Пользователь не найден");
                 }
-                var orderItem = await _orderItem.CreateItem(new OrderItem
-                {
-                    ProductId = order.ProductId,
-                    Quantity = order.Quantity,
-                    Product = product,
-                    ProductName = product.Name,
-                    UnitPrice = product.Price,
-                    DiscountPrice = product.DiscountPrice
-                });
-                if(orderItem == null)
-                {
-                    return Result<Order>.Failure(500, "Ошибка при создании позиции заказа");
-                }
                 var newOrder = new Order
                 {
-                    OrderId = Guid.NewGuid(),
+                    OrderId = new Guid(),
                     UserId = order.UserId,
                     Status = OrderStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
                     PaidAt = DateTime.UtcNow,
-                    TotalAmount =+ orderItem.TotalPrice,
-                    DiscountAmount = orderItem.DiscountAmount,
-                    OrderItems = new List<OrderItem> { orderItem },
                     Paymentstatus = PaymentStatus.Pending,
                     BonisPointsUsed = user.BonusPoints,
                     user = user,
                     promoCode = null
                 };
+
                 var result = await _order.CreateOrder(newOrder);
-                if(result == null)
+                if (result == null)
                 {
                     return Result<Order>.Failure(500, "Ошибка при создании заказа");
                 }
-                orderItem.OrderId = result.OrderId;
-                orderItem.Order = result;
-                var updateOrderItem = await _orderItem.PutItem(orderItem);
-                if(updateOrderItem == null)
+                var orderItem = await _orderItem.CreateItem(new OrderItem
+                {
+                    OrderId = result.OrderId,
+                    ProductId = order.ProductId,
+                    Quantity = order.Quantity,
+                    Product = product,
+                    ProductName = product.Name,
+                    UnitPrice = product.Price,
+                    DiscountPrice = product.DiscountPrice,
+                    Order = result,
+                });
+
+                if(orderItem == null)
+                {
+                    return Result<Order>.Failure(500, "Ошибка при создании позиции заказа");
+                }
+                
+                result.TotalAmount += orderItem.TotalPrice;
+                result.DiscountAmount += orderItem.DiscountAmount;
+                result.OrderItems.Add(orderItem);
+                var updateorder = await _order.PutOrder(result);
+                if(updateorder == null)
                 {
                     return Result<Order>.Failure(500, "Ошибка при обновлении позиции заказа");
                 }
@@ -106,6 +116,13 @@ namespace ShopApi
                 return Result<Order>.Failure(500, "Ошибка создания заказа" + ex.Message);
             }
         }
+        /// <summary>
+        /// Добавление товара в заказ 
+        /// </summary>
+        /// <param name="OrderId"></param>
+        /// <param name="productId"></param>
+        /// <param name="Quantity"></param>
+        /// <returns></returns>
         public async Task<Result<Order>> UpdateAddProductsToOrder(Guid OrderId, Guid productId, int Quantity)
         {
             try
@@ -155,29 +172,47 @@ namespace ShopApi
                 return Result<Order>.Failure(500, "Ошибка обновления заказа" + ex.Message);
             }
         }
-        public async Task<Result<Order>> GetOrderAsync(Guid OrderId)
+        /// <summary>
+        /// Получение всей корзины заказа
+        /// </summary>
+        /// <param name="OrderId"></param>
+        /// <returns></returns>
+        public async Task<Result<OrderResponseDto>> GetOrderAsync(Guid OrderId)
         {
             try
             {
                 _logger.LogInformation("Получение заказа");
                 if(OrderId == Guid.Empty)
                 {
-                    return Result<Order>.Failure(400, "Некорректный идентификатор заказа");
+                    return Result<OrderResponseDto>.Failure(400, "Некорректный идентификатор заказа");
                 }
                 var order = await _order.GetOrderAsync(OrderId);
                 if(order == null)
                 {
-                    return Result<Order>.Failure(404, "Заказ не найден");
+                    return Result<OrderResponseDto>.Failure(404, "Заказ не найден");
                 }
-                return Result<Order>.Success(order, "Заказ получен");
+                var product = await _orderItem.GetOrderItemsAsync(OrderId);
+                var result = new OrderResponseDto
+                {
+                    TotalAmount = order.TotalAmount,
+                    DiscountPrice = order.DiscountAmount,
+                    OrderItems = product
+
+                };
+
+                return Result<OrderResponseDto>.Success(result, "Заказ получен");
+                
             }
             catch(Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения заказа");
-                return Result<Order>.Failure(500, "Ошибка получения заказа" + ex.Message);
+                return Result<OrderResponseDto>.Failure(500, "Ошибка получения заказа" + ex.Message);
             }
         }
-
+        /// <summary>
+        /// Получение все заказов возможность выполение только с ролью Admin Manager
+        /// </summary>
+        /// <returns></returns>
         public async Task<Result<List<Order>>> GetOredrs()
         {
             try
@@ -196,7 +231,11 @@ namespace ShopApi
                 return Result<List<Order>>.Failure(500, "Ошибка получения списка заказов" + ex.Message);
             }
         }
-
+        /// <summary>
+        /// Полчение всех заказов по статусу его обработки в бд получени только Admin Manager
+        /// </summary>
+        /// <param name="status"></param>
+        /// <returns></returns>
         public async Task<Result<List<Order>>> GetOrderStatus(string status)
         {
             try
@@ -221,30 +260,11 @@ namespace ShopApi
                 return Result<List<Order>>.Failure(500, "Ошибка получения заказов по статусу" + ex.Message);
             }
         }
-
-        public async Task<Result<Order>> PutOrder(Order order)
-        {
-            try
-            {
-                _logger.LogInformation("Обновление заказа: {OrderId}", order.OrderId);
-                if(order.OrderId == Guid.Empty)
-                {
-                    return Result<Order>.Failure(400, "Некорректный идентификатор заказа");
-                }
-                var result = await _order.PutOrder(order);
-                if(result == null)
-                {
-                    return Result<Order>.Failure(500, "Ошибка при обновлении заказа");
-                }
-                return Result<Order>.Success(result, "Заказ успешно обновлен");
-            }
-            catch(Exception ex)
-            {
-                _logger.LogError(ex, "Ошибка обновления заказа");
-                return Result<Order>.Failure(500, "Ошибка обновления заказа" + ex.Message);
-            }
-        }
-
+        /// <summary>
+        /// Получение всех заказов пользователя 
+        /// </summary>
+        /// <param name="UserId"></param>
+        /// <returns></returns>
         public async Task<Result<Order>> GetOrdersByUserId(Guid UserId)
         {
             try
@@ -267,7 +287,11 @@ namespace ShopApi
                 return Result<Order>.Failure(500, "Ошибка получения заказов пользователя" + ex.Message);
             }
         }
-
+        /// <summary>
+        /// Удаление заказа полностью
+        /// </summary>
+        /// <param name="OrderId"></param>
+        /// <returns></returns>
         public async Task<Result<bool>> DeleteOrder(Guid OrderId)
         {
             try
@@ -292,7 +316,11 @@ namespace ShopApi
                 return Result<bool>.Failure(500, "Ошибка удаления заказа" + ex.Message);
             }
         }
-
+        /// <summary>
+        /// Оплата заказа запрос о создании платежа создается передается отдельному сервису оплаты заказа
+        /// </summary>
+        /// <param name="OrderId"></param>
+        /// <returns></returns>
         public async Task<Result<string>> BuyOrder(Guid OrderId)
         {
             try
@@ -347,6 +375,12 @@ namespace ShopApi
                 return Result<string>.Failure(500, "Ошибка оплаты заказа" + ex.Message);
             }
         }
+
+        /// <summary>
+        /// Проверка статуса оплаты заказа
+        /// </summary>
+        /// <param name="OrderId"></param>
+        /// <returns></returns>
         public async Task<Result<string>> GetStatusOrder(Guid OrderId)
         {
             try
@@ -367,6 +401,28 @@ namespace ShopApi
                 return Result<string>.Failure(500, "Ошибка получения заказа" + ex.Message);
             }
             
+        }
+        public async Task<Result<Order>> PutOrder(Order order)
+        {
+            try
+            {
+                _logger.LogInformation("Обновление заказа: {OrderId}", order.OrderId);
+                if (order.OrderId == Guid.Empty)
+                {
+                    return Result<Order>.Failure(400, "Некорректный идентификатор заказа");
+                }
+                var result = await _order.PutOrder(order);
+                if (result == null)
+                {
+                    return Result<Order>.Failure(500, "Ошибка при обновлении заказа");
+                }
+                return Result<Order>.Success(result, "Заказ успешно обновлен");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка обновления заказа");
+                return Result<Order>.Failure(500, "Ошибка обновления заказа" + ex.Message);
+            }
         }
     }
 }

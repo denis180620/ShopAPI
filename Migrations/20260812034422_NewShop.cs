@@ -8,7 +8,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ShopApi.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class NewShop : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -31,13 +31,12 @@ namespace ShopApi.Migrations
                 name: "Categories",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
-                    NameRu = table.Column<string>(type: "text", nullable: false),
-                    NameEn = table.Column<string>(type: "text", nullable: false),
-                    ParentCategoryId = table.Column<int>(type: "integer", nullable: true),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    NameRu = table.Column<string>(type: "text", nullable: true),
+                    NameEn = table.Column<string>(type: "text", nullable: true),
+                    ParentCategoryId = table.Column<Guid>(type: "uuid", nullable: true),
                     DisplayOrder = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
@@ -113,14 +112,14 @@ namespace ShopApi.Migrations
                     Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     Price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     DiscountPrice = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    Description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: false),
+                    Description = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
                     StockQuantity = table.Column<int>(type: "integer", nullable: false),
-                    ImageURL = table.Column<string>(type: "text", nullable: false),
-                    CategoryId = table.Column<int>(type: "integer", nullable: false),
-                    NameRu = table.Column<string>(type: "text", nullable: false),
-                    NameEn = table.Column<string>(type: "text", nullable: false),
-                    DescriptionRu = table.Column<string>(type: "text", nullable: false),
-                    DescriptionEn = table.Column<string>(type: "text", nullable: false),
+                    ImageURL = table.Column<string>(type: "text", nullable: true),
+                    CategoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    NameRu = table.Column<string>(type: "text", nullable: true),
+                    NameEn = table.Column<string>(type: "text", nullable: true),
+                    DescriptionRu = table.Column<string>(type: "text", nullable: true),
+                    DescriptionEn = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -252,12 +251,12 @@ namespace ShopApi.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     OrderId = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    PaymentUrl = table.Column<string>(type: "text", nullable: false),
+                    PaymentUrl = table.Column<string>(type: "text", nullable: true),
                     Subtotal = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     DiscountAmount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     TotalAmount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     PromoCodeDiscount = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
-                    promoCode = table.Column<string>(type: "text", nullable: false),
+                    promoCode = table.Column<string>(type: "text", nullable: true),
                     BonisPointsUsed = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     Paymentstatus = table.Column<int>(type: "integer", nullable: false),

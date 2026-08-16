@@ -124,6 +124,29 @@ namespace ShopApi
             }
             return Ok(result);
         }
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken()
+        {
+            var refreshToken = Request.Cookies["refreshToken"];
+            if (string.IsNullOrWhiteSpace(refreshToken))
+            {
+                return Unauthorized(new { success = false, message = "Отсутствует токен авторизации" });
+            }
+            var result = await _auth.RefreshTokenAsync(refreshToken);
+
+            if (!result.IsSuccess)
+            {
+                Response.Cookies.Delete("refreshToken");
+                return Unauthorized(new { success = false, message = result.ErrorMessage });
+            }
+            SetRefreshTokenCookie(result.Data.RefreshTokens);
+
+            return Ok(new
+            {
+                success = true,
+                accessToken = result.Data.AccessToken
+            });
+        }
         private void SetRefreshTokenCookie(string RefreshToken)
         {
             Response.Cookies.Append("refreshToken", RefreshToken, new CookieOptions

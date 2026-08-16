@@ -3,10 +3,10 @@ namespace ShopApi
     public interface IServiceCategory
     {
         Task<Result<bool>> CreateCategory(CategoryDTO category);
-        Task<Result<Category>> GetCategoryById(int id);
+        Task<Result<Category>> GetCategoryById(Guid id);
         Task<Result<List<Category>>> GetAllCategories();
         Task<Result<Category>> UpdateCategory(Category category);
-        Task<Result<bool>> DeleteCategory(int id);
+        Task<Result<bool>> DeleteCategory(Guid id);
         Task<Result<Category>> GetChildCategories(string name);
         Task<Result<Category>> UpdateProduct(Product product);
     }
@@ -19,19 +19,25 @@ namespace ShopApi
             _category = category;
             _logger = logger;
         }
+        /// <summary>
+        /// Создание категории товара, создание разрешено только роли Admin
+        /// </summary>
+        /// <param name="category"></param>
+        /// <returns></returns>
         public async Task<Result<bool>> CreateCategory(CategoryDTO category)
         {
             try{
-            _logger.LogInformation("Создание категории");
+            _logger.LogInformation("Создание категории, {ParentCategoryId}", category.ParentCategoryId);
             if(category.Name == null || category.Description == null || category.NameEn == null)
             {
                 return Result<bool>.Failure(400, "Некорректные данные");
             }
-            if(category.ParentCategoryId != null && category.ParentCategoryId > 0)
+            if(category.ParentCategoryId.HasValue && category.ParentCategoryId != Guid.Empty)
             {
-                var parentCategory = await _category.GetCategoryById((int)category.ParentCategoryId);
+                var parentCategory = await _category.GetCategoryById(category.ParentCategoryId);
                 if(parentCategory == null)
                 {
+                    
                     return Result<bool>.Failure(404, "Родительская категория не найдена");
                 }
             
@@ -80,11 +86,16 @@ namespace ShopApi
                 return Result<bool>.Failure(500, "Ошибка при создании категории" + ex.Message);
             }
         }
-        public async Task<Result<Category>> GetCategoryById(int id)
+        /// <summary>
+        /// Получение категории по Id 
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        public async Task<Result<Category>> GetCategoryById(Guid id)
         {
             try{
             _logger.LogInformation("Получение категории по идентификатору");
-            if(id <= 0)
+            if(id == Guid.Empty)
             {
                 return Result<Category>.Failure(400, "Некорректный индефекатор категории");
             }
@@ -94,11 +105,13 @@ namespace ShopApi
                 return Result<Category>.Failure(400, "Не корректный индефекатор категории, убедитесь что категория существует");
             }
             return Result<Category>.Success(category, "Категория успешно получена");
-        }catch(Exception ex)
-        {
+            }
+
+            catch(Exception ex)
+            {
             _logger.LogError(ex, "Ошибка при получении категории");
             return Result<Category>.Failure(500, "Ошибка при получении категории" + ex.Message);
-        }
+            }
         }
         public async Task<Result<List<Category>>> GetAllCategories()
         {
@@ -118,6 +131,11 @@ namespace ShopApi
                 return Result<List<Category>>.Failure(500, "Ошибка при получении всех категорий" + ex.Message);
             }
         }
+        /// <summary>
+        /// Редоктирование категории
+        /// </summary>
+        /// <param name="category"></param>
+        /// <returns></returns>
         public async Task<Result<Category>> UpdateCategory(Category category)
         {
             try
@@ -149,12 +167,17 @@ namespace ShopApi
                 return Result<Category>.Failure(500, "Ошибка при обновлении категории" + ex.Message);
             }
         }
-        public async Task<Result<bool>> DeleteCategory(int id)
+        /// <summary>
+        /// Удаление категории
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        public async Task<Result<bool>> DeleteCategory(Guid id)
         {
             try
             {
                 _logger.LogInformation("Удаление категории");
-                if(id <= 0)
+                if(id == Guid.Empty)
                 {
                     return Result<bool>.Failure(400, "Некорректный индефекатор категории");
                 }
@@ -175,6 +198,11 @@ namespace ShopApi
                 return Result<bool>.Failure(500, "Ошибка при удалении категории" + ex.Message);
             }
         }
+        /// <summary>
+        /// Получение дочерних категорий созданных под категорией 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         public async Task<Result<Category>> GetChildCategories(string name)
         {
             try
@@ -197,6 +225,11 @@ namespace ShopApi
                 return Result<Category>.Failure(500, "Ошибка при получении дочерних категорий" + ex.Message);
             }
         }
+        /// <summary>
+        /// Добавление товара в категорию
+        /// </summary>
+        /// <param name="product"></param>
+        /// <returns></returns>
         public async Task<Result<Category>> UpdateProduct(Product product)
         {
             try

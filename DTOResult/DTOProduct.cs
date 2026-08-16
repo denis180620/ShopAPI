@@ -11,7 +11,7 @@ namespace ShopApi
         public int StockQuantity { get; set; }
         public string ImageURL { get; set; }
 
-        public int CategoryId { get; set; }
+        public Guid CategoryId { get; set; }
 
         public string NameEn { get; set; }
         public string DescriptionEn { get; set; }
@@ -29,10 +29,10 @@ namespace ShopApi
             set => _pageSize = (value > MaxPageSize) ? MaxPageSize :value;
         }
 
-        public string SearchTerm {get; set;}
+        public string? SearchTerm {get; set;}
         public string? SortBy {get; set;}
         public bool SortDescending {get; set;} = false;
-        public int CategoryId {get; set;}
+        public Guid CategoryId {get; set;}
         public decimal minPrice {get; set;}
         public decimal maxPrice {get; set;}
     }
@@ -61,5 +61,12 @@ namespace ShopApi
         public Guid ProductId {get; set;}
         public int Quantity {get; set;}
         public decimal DiscountPrice {get; set;}
+    }
+    public class OrderResponseDto
+    {
+        public decimal TotalAmount {get; set;}
+        public decimal DiscountPrice {get; set;}
+        public List<OrderItem> OrderItems {get; set;}
+
     }
 }

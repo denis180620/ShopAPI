@@ -21,23 +21,28 @@ namespace ShopApi
         public async Task<IActionResult> CreateProduct([FromBody] ResponseProduct product)
         {
             _logger.LogInformation("Принят запрос на создание продукта");
-            var result = await _product.CreateProduct(product);
+            var currentUserId = GetUserIdFromToken();
+            var result = await _product.CreateProduct(product, currentUserId);
             if (!result.IsSuccess)
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
         [HttpPut]
         public async Task<IActionResult> UpdateProduct([FromBody] ResponseProduct product)
         {
             _logger.LogInformation("Принят запрос на изменение продукта {id}", product.Id);
-            var result = await _product.UpdateProduct(product);
+
+            var currentUserId = GetUserIdFromToken();
+            var isAdmin = User.IsInRole("Admin");
+
+            var result = await _product.UpdateProduct(product, currentUserId, isAdmin);
             if (!result.IsSuccess)
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
         [HttpPut("{Id}/{quantity}")]
         public async Task<IActionResult> GetAddQuantityProduct(Guid Id, int quantity)
@@ -48,7 +53,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
         [HttpGet("admin")]
         public async Task<IActionResult> GetAdminProduct()
@@ -60,10 +65,10 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
-
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAllProduct([FromQuery] PaginationRequest request)
         {
             _logger.LogInformation("Принят запрос на получение всех продуктов");
@@ -72,19 +77,20 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
 
         [HttpGet("{Id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetProductById(Guid Id)
         {
-            _logger.LogInformation("Принят запрос на получение продукта");
+            _logger.LogInformation("Принят запрос на получение продукта {Id}", Id);
             var result = await _product.GetProductById(Id);
             if (!result.IsSuccess)
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
 
         [HttpDelete("{Id}")]
@@ -96,7 +102,7 @@ namespace ShopApi
             {
                 return StatusCode(result.StatusCode, new { error = result.ErrorMessage });
             }
-            return Ok(new { data = result.Data, message = result.Message });
+            return Ok(result);
         }
 
         private Guid GetUserIdFromToken()

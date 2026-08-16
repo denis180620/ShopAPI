@@ -17,12 +17,12 @@ namespace ShopApi
         public Guid OrderId {get; set;}
         public Guid UserId {get; set;}
         public  User user {get; set;}
-        public string PaymentUrl {get; set;}
+        public string? PaymentUrl {get; set;}
         public decimal Subtotal {get; set;}
         public decimal DiscountAmount {get; set;}
         public decimal TotalAmount {get; set;}
         public decimal PromoCodeDiscount {get; set;}
-        public string promoCode {get; set;}
+        public string? promoCode {get; set;}
 
         public int BonisPointsUsed {get; set;}
 

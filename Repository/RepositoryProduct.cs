@@ -11,7 +11,7 @@ namespace ShopApi
 
         Task<List<Product>> GetQuantityProductAsync(int quantity);
         Task<Product> GetProductById(Guid Id);
-        Task<Product> GetProductCategoryById(int Id);
+        Task<Product> GetProductCategoryById(Guid Id);
         Task<(IEnumerable<Product> Items, int TotalCount)> GetProductsPaginated(
            PaginationRequest request);
         Task<List<Product>> GetAdministratorProduct(Guid UserId);
@@ -45,14 +45,16 @@ namespace ShopApi
         {
             try
             {
+                _logger.LogInformation("Репозиторий: Обновление продукта Id={Id}, Name='{Name}'", product.Id, product.Name);
                  _context.Products.Update(product);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("Репозиторий: Продукт успешно сохранён в БД");
                 return product;
             }
             catch(Exception ex)
             {
-                _logger.LogError(ex, "Ошибка при обновлении количества продукта");
-                throw new Exception("ОШибка при обновлени количества продукта" + ex.Message);
+                _logger.LogError(ex, "Ошибка при обновлении продукта");
+                throw new Exception("ОШибка при обновлении продукта" + ex.Message);
             }
         }
         public async Task<bool> DeleteProduct(Guid id)
@@ -77,12 +79,19 @@ namespace ShopApi
         }
         public async Task<(IEnumerable<Product> Items, int TotalCount)> GetProductsAsync(PaginationRequest request)
         {
-            try{
-            var query = _context.Products
-                        .Include(p => p.Category)
-                        .AsNoTracking();
+            // Валидация PageNumber
+            if (request.PageNumber < 1)
+            {
+                request.PageNumber = 1;
+            }
 
-                if ( request.CategoryId > 0)
+            try
+            {
+                // Базовый запрос без Include для подсчета
+                var query = _context.Products.AsNoTracking();
+
+                // Фильтрация по категории
+                if (request.CategoryId > Guid.Empty)
                 {
                     query = query.Where(p => p.CategoryId == request.CategoryId);
                 }
@@ -93,27 +102,34 @@ namespace ShopApi
                     query = query.Where(p => p.Price >= request.minPrice);
                 }
 
+                // maxPrice == 0 означает "без ограничения" (или decimal.MaxValue из сервиса)
                 if (request.maxPrice > 0)
                 {
                     query = query.Where(p => p.Price <= request.maxPrice);
                 }
 
+                // Подсчет общего количества (ДО Include и сортировки)
                 var totalCount = await query.CountAsync();
 
-                    query = request.SortBy.ToLower() switch
-                    {
-                        "name" => request.SortDescending
-                            ? query.OrderByDescending(p => p.Name)
-                            : query.OrderBy(p => p.Name),
-                        "price" => request.SortDescending
-                            ? query.OrderByDescending(p => p.Price)
-                            : query.OrderBy(p => p.Price),
-                        "createdat" => request.SortDescending
-                            ? query.OrderByDescending(p => p.CreatedAt)
-                            : query.OrderBy(p => p.CreatedAt),
-                        _ => query.OrderBy(p => p.Id)
-                    };
+                // Применяем сортировку с обработкой null SortBy
+                query = (!string.IsNullOrEmpty(request.SortBy) ? request.SortBy.ToLower() : "") switch
+                {
+                    "name" => request.SortDescending
+                        ? query.OrderByDescending(p => p.Name)
+                        : query.OrderBy(p => p.Name),
+                    "price" => request.SortDescending
+                        ? query.OrderByDescending(p => p.Price)
+                        : query.OrderBy(p => p.Price),
+                    "createdat" => request.SortDescending
+                        ? query.OrderByDescending(p => p.CreatedAt)
+                        : query.OrderBy(p => p.CreatedAt),
+                    _ => query.OrderBy(p => p.Id)
+                };
 
+                // Добавляем Include только для получения данных
+                // query = query.Include(p => p.Category);
+
+                // Применяем пагинацию
                 var items = await query
                     .Skip((request.PageNumber - 1) * request.PageSize)
                     .Take(request.PageSize)
@@ -121,10 +137,10 @@ namespace ShopApi
 
                 return (items, totalCount);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Ошибка при получении продуктов");
-                throw new Exception("ОШибка при получении продуктов" + ex.Message);
+                throw new Exception("Ошибка при получении продуктов: " + ex.Message);
             }
         }
         public async Task<List<Product>> GetQuantityProductAsync(int queantity)
@@ -132,7 +148,7 @@ namespace ShopApi
             var product = await _context.Products.AsNoTracking().Where(c => c.StockQuantity < queantity).ToListAsync();
             return product;
         }
-        public async Task<Product> GetProductCategoryById(int Id)
+        public async Task<Product> GetProductCategoryById(Guid Id)
         {
             var product = await _context.Products.FirstOrDefaultAsync(s => s.CategoryId == Id);
             return product;
@@ -145,18 +161,27 @@ namespace ShopApi
         public async Task<(IEnumerable<Product> Items, int TotalCount)> GetProductsPaginated(
            PaginationRequest request)
         {
-            var query = _context.Products
-                .Include(p => p.Category)
-                .AsNoTracking();
+            // Валидация PageNumber
+            if (request.PageNumber < 1)
+            {
+                request.PageNumber = 1;
+            }
 
+            // Базовый запрос без Include для фильтрации и подсчета
+            var query = _context.Products.AsNoTracking();
+
+            // Применяем фильтры
+            if (!string.IsNullOrEmpty(request.SearchTerm))
+            {
                 var search = request.SearchTerm.ToLower();
                 query = query.Where(p =>
                     p.Name.ToLower().Contains(search) ||
                     p.NameEn.ToLower().Contains(search) ||
                     p.Description.ToLower().Contains(search) ||
                     p.DescriptionEn.ToLower().Contains(search));
-            
-            if (request.CategoryId > 0)
+            }
+
+            if (request.CategoryId > Guid.Empty)
             {
                 query = query.Where(p => p.CategoryId == request.CategoryId);
             }
@@ -171,25 +196,28 @@ namespace ShopApi
                 query = query.Where(p => p.Price <= request.maxPrice);
             }
 
+            // Подсчет общего количества (ДО Include и сортировки)
             var totalCount = await query.CountAsync();
 
+            // Применяем сортировку
+            query = (!string.IsNullOrEmpty(request.SortBy) ? request.SortBy.ToLower() : "") switch
+            {
+                "name" => request.SortDescending
+                    ? query.OrderByDescending(p => p.Name)
+                    : query.OrderBy(p => p.Name),
+                "price" => request.SortDescending
+                    ? query.OrderByDescending(p => p.Price)
+                    : query.OrderBy(p => p.Price),
+                "createdat" => request.SortDescending
+                    ? query.OrderByDescending(p => p.CreatedAt)
+                    : query.OrderBy(p => p.CreatedAt),
+                _ => query.OrderBy(p => p.Id)
+            };
 
-                query = request.SortBy.ToLower() switch
-                {
-                    "name" => request.SortDescending
-                        ? query.OrderByDescending(p => p.Name)
-                        : query.OrderBy(p => p.Name),
-                    "price" => request.SortDescending
-                        ? query.OrderByDescending(p => p.Price)
-                        : query.OrderBy(p => p.Price),
-                    "createdat" => request.SortDescending
-                        ? query.OrderByDescending(p => p.CreatedAt)
-                        : query.OrderBy(p => p.CreatedAt),
-                    _ => query.OrderBy(p => p.Id)
-                };
+            // Добавляем Include только для получения данных
+            // query = query.Include(p => p.Category);
 
-
-            // Пагинация
+            // Применяем пагинацию
             var items = await query
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)

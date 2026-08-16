@@ -71,9 +71,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()         
+             .AllowCredentials();
     });
 });
 
@@ -121,8 +122,13 @@ builder.Services.AddHttpClient<IPaymentClient, PaymentClient>(client =>
             });
 });
 
-// Добавление контроллеров
-builder.Services.AddControllers();
+// Добавление контроллеров с настройкой JSON для обработки циклических ссылок
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnetcore/openapi
 builder.Services.AddEndpointsApiExplorer();
@@ -140,23 +146,37 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
-        // Создаем роли если не существуют
-        if (!await context.Roles.AnyAsync())
+        // Применяем миграции при старте приложения
+        context.Database.Migrate();
+        Console.WriteLine("Миграции применены успешно");
+
+        // Создаем роли если не существуют (проверяем каждую отдельно)
+        if (!await roleManager.RoleExistsAsync("Admin"))
         {
             await roleManager.CreateAsync(new IdentityRole<Guid>("Admin"));
+            Console.WriteLine("Роль Admin создана");
+        }
+
+        if (!await roleManager.RoleExistsAsync("User"))
+        {
             await roleManager.CreateAsync(new IdentityRole<Guid>("User"));
+            Console.WriteLine("Роль User создана");
+        }
+
+        if (!await roleManager.RoleExistsAsync("Manager"))
+        {
             await roleManager.CreateAsync(new IdentityRole<Guid>("Manager"));
-            Console.WriteLine("Роли созданы: Admin, User, Manager");
+            Console.WriteLine("Роль Manager создана");
         }
 
         // Создаем админа если не существует                                                                                                                                                                                         
-        var existingAdmin = await userManager.FindByEmailAsync("admin@shop.com");
+        var existingAdmin = await userManager.FindByEmailAsync("denis.shabalin2000@gmail.com");
         if (existingAdmin == null)
         {
             var adminUser = new User
             {
-                UserName = "admin",
-                Email = "admin@shop.com",
+                UserName = "denis.shabalin2000@gmail.com",
+                Email = "denis.shabalin2000@gmail.com",
                 FirstName = "Super",
                 EmailConfirmed = true,
                 RegisterAt = DateTime.UtcNow,
@@ -166,18 +186,16 @@ using (var scope = app.Services.CreateScope())
             var result = await userManager.CreateAsync(adminUser, "AdminPass123!");
             if (result.Succeeded)
             {
-                await userManager.AddToRoleAsync(adminUser, "Admin");
-                Console.WriteLine("Админ создан: admin@shop.com / AdminPass123!");
-            }
+                await userManager.AddToRoleAsync(adminUser, "Admin"); 
         }
         else
         {
             if (!await userManager.IsInRoleAsync(existingAdmin, "Admin"))
             {
                 await userManager.AddToRoleAsync(existingAdmin, "Admin");
-                Console.WriteLine("Роль Admin добавлена admin@shop.com");
             }
         }
+    }
     }
     catch (Exception ex)
     {

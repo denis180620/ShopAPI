@@ -18,7 +18,12 @@ namespace ShopApi{
             _configuration = configuration;
             _logger = logger;
         }
-
+        /// <summary>
+        /// Оправка код подтверждение на Email для входа в личный кабиент
+        /// </summary>
+        /// <param name="RecipientInfo"></param>
+        /// <param name="content"></param>
+        /// <returns></returns>
         public async Task<Result<ResponseSender>> SendAsync(string RecipientInfo, string content)
         {
             try
@@ -28,7 +33,7 @@ namespace ShopApi{
                 email.From.Add(new MailboxAddress("Congratulation Service",
                     _configuration["Email:From"]));
                 email.To.Add(new MailboxAddress("", RecipientInfo));
-                email.Subject = "Поздравление!";
+                email.Subject = "Код подтверждения";
 
                 email.Body = new TextPart("html")
                 {

@@ -2,11 +2,11 @@ namespace ShopApi
 {
     public interface IServiceProduct
     {
-        Task<Result<bool>> CreateProduct(ResponseProduct product);
-        Task<Result<bool>> UpdateProduct(ResponseProduct product);
-        Task<Result<List<Product>>> GetAllProduct(PaginationRequest request);
-        Task<Result<List<Product>>> GetProductById(Guid id);
-        Task<Result<List<Product>>> GetProductCategoryById(int Id);
+        Task<Result<bool>> CreateProduct(ResponseProduct product, Guid currentUserId);
+        Task<Result<bool>> UpdateProduct(ResponseProduct product, Guid currentUserId, bool isAdmin);
+        Task<Result<PaginationResponse<Product>>> GetAllProduct(PaginationRequest request);
+        Task<Result<Product>> GetProductById(Guid id);
+        Task<Result<List<Product>>> GetProductCategoryById(Guid Id);
         Task<Result<bool>> DeleteProduct(Guid id);
         Task<Result<Product>> GetAddQuantityProduct(Guid id, int quantity);
         Task<Result<List<Product>>> GetAdministratorProduct(Guid UserId);
@@ -22,7 +22,14 @@ namespace ShopApi
             _logger = logger;
             _product = product;
         }
-        public async Task<Result<bool>> CreateProduct(ResponseProduct product)
+        /// <summary>
+        /// Создание продукта, создание продукта возможно только с ролью Admin Managaer
+        /// </summary>
+        /// <param name="product"></param>
+        /// <param name="currentUserId"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public async Task<Result<bool>> CreateProduct(ResponseProduct product, Guid currentUserId)
         {
             try{
             _logger.LogInformation("Принят запрос на создание продукции {Name}", product.Name);
@@ -46,7 +53,7 @@ namespace ShopApi
             {
                 return Result<bool>.Failure(400, "Количество товара должно быть больше 1");
             }
-            if (product.CategoryId == 0)
+            if (product.CategoryId == Guid.Empty)
             {
                 return Result<bool>.Failure(400, "Не указано имя категории, создание продукта не возможно");
             }
@@ -58,7 +65,7 @@ namespace ShopApi
             var Resultproduct = new Product
             {
                 Id = Guid.NewGuid(),
-                UserId = product.UserId,
+                UserId = currentUserId,
                 Name = product.Name,
                 Price = product.Price,
                 DiscountPrice = product.DiscountPrice,
@@ -90,7 +97,15 @@ namespace ShopApi
                 throw new Exception("Внутрення ошибка сервера"+ ex.Message);
             }
         }
-        public async Task<Result<bool>> UpdateProduct(ResponseProduct product)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="product"></param>
+        /// <param name="currentUserId"></param>
+        /// <param name="isAdmin"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public async Task<Result<bool>> UpdateProduct(ResponseProduct product, Guid currentUserId, bool isAdmin)
         {
             try
             {
@@ -101,7 +116,7 @@ namespace ShopApi
                 }
                 if (string.IsNullOrWhiteSpace(product.NameEn))
                 {
-                    return Result<bool>.Failure(400, "ПОстое имя продукта на русском или английском языке");
+                    return Result<bool>.Failure(400, "Постое имя продукта на русском или английском языке");
                 }
                 if (string.IsNullOrWhiteSpace(product.DescriptionEn) && string.IsNullOrWhiteSpace(product.Description))
                 {
@@ -109,13 +124,13 @@ namespace ShopApi
                 }
                 if (product.Price < product.DiscountPrice)
                 {
-                    return Result<bool>.Failure(400, "Скидка превышает стоимтость товара");
+                    return Result<bool>.Failure(400, "Скидка превышает стоимость товара");
                 }
-                if (product.StockQuantity < 0)
+                if (product.StockQuantity < 2)
                 {
                     return Result<bool>.Failure(400, "Количество товара должно быть больше 1");
                 }
-                if (product.CategoryId == 0)
+                if (product.CategoryId == Guid.Empty)
                 {
                     return Result<bool>.Failure(400, "Не указано имя категории, создание продукта не возможно");
                 }
@@ -129,10 +144,15 @@ namespace ShopApi
                 {
                     return Result<bool>.Failure(400, "Некорректный номер продукта");
                 }
-                if(existingProduct.UserId != product.UserId)
+
+                _logger.LogInformation("Обновление продукта: Текущее имя='{CurrentName}', новое имя='{NewName}'",
+                    existingProduct.Name, product.Name);
+
+                if(!isAdmin || existingProduct.UserId != currentUserId)
                 {
                     return Result<bool>.Failure(403, "Нет прав доступа на измения продукта");
                 }
+
                 existingProduct.Name = product.Name;
                 existingProduct.NameRu = product.Name;
                 existingProduct.NameEn = product.NameEn;
@@ -143,7 +163,8 @@ namespace ShopApi
                 existingProduct.DescriptionEn = product.DescriptionEn;
                 existingProduct.StockQuantity = product.StockQuantity;
                 existingProduct.CategoryId = product.CategoryId;
-                existingProduct.Category = category;
+              //  existingProduct.Category = category;
+                existingProduct.UpdatedAt = DateTime.UtcNow;
 
                 var result = await _product.UpdateProduct(existingProduct);
                 if(result == null)
@@ -158,7 +179,12 @@ namespace ShopApi
                 throw new Exception("Внутрення ошибка сервера" + ex.Message);
             }
         }
-        public async Task<Result<List<Product>>> GetAllProduct(PaginationRequest request)
+        /// <summary>
+        /// Получение всех существующий продуктов с пагинацией 
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        public async Task<Result<PaginationResponse<Product>>> GetAllProduct(PaginationRequest request)
         {
             try
             {
@@ -167,21 +193,21 @@ namespace ShopApi
                 {
                     if(request.PageSize > 100)
                     {
-                        return Result<List<Product>>.Failure(400, "Превышенно максимальное количество продукции на одной странице");
+                        return Result<PaginationResponse<Product>>.Failure(400, "Превышенно максимальное количество продукции на одной странице");
                     }
                 }
                 if(request.minPrice > request.maxPrice)
                 {
-                    return Result<List<Product>>.Failure(400, "Минимальная цена не может быть больше максимальной цены");
-                    
+                    return Result<PaginationResponse<Product>>.Failure(400, "Минимальная цена не может быть больше максимальной цены");
+
                 }
                 if(request.maxPrice == 0)
                 {
-                    var max = request.maxPrice = decimal.MaxValue;
+                    request.maxPrice = decimal.MaxValue;
                 }
-                if (request.SearchTerm == null)
+                if (string.IsNullOrEmpty(request.SearchTerm))
                 {
-                    var SearshRequest = new PaginationRequest
+                    var searchRequest = new PaginationRequest
                     {
                         PageNumber = request.PageNumber,
                         PageSize = request.PageSize,
@@ -191,14 +217,14 @@ namespace ShopApi
                         minPrice = request.minPrice,
                         maxPrice = request.maxPrice
                     };
-                    var result = await _product.GetProductsAsync(request);
+                    var result = await _product.GetProductsAsync(searchRequest);
                     if(result.Items == null || result.TotalCount == 0)
                     {
                         _logger.LogWarning("Продукты по указынным фильтрам не найдены");
-                        return Result<List<Product>>.Failure(404, "Продукты по указанным фильтрам не найдены");
+                        return Result<PaginationResponse<Product>>.Failure(404, "Продукты по указанным фильтрам не найдены");
                     }
                     var responses = new PaginationResponse<Product>(result.Items, result.TotalCount, request.PageNumber, request.PageSize);
-                    return Result<List<Product>>.Success(responses.Items.ToList(), "Продукты успешно получены");
+                    return Result<PaginationResponse<Product>>.Success(responses, "Продукты успешно получены");
                 }
                 var SearshRequestWithTerm = new PaginationRequest
                 {
@@ -215,21 +241,32 @@ namespace ShopApi
                 if(results.Items == null || results.TotalCount == 0)
                 {
                     _logger.LogWarning("Продукты по указынным фильтрам не найдены");
-                    return Result<List<Product>>.Failure(404, "Продукты по указанным фильтрам не найдены");
+                    return Result<PaginationResponse<Product>>.Failure(404, "Продукты по указанным фильтрам не найдены");
                 }
                 var response = new PaginationResponse<Product>(results.Items, results.TotalCount, request.PageNumber, request.PageSize);
-                return Result<List<Product>>.Success(response.Items.ToList(), "Продукты успешно получены");
+                return Result<PaginationResponse<Product>>.Success(response, "Продукты успешно получены");
             }
             catch (Exception ex)
             {
-                _logger.LogError("Произошла ошибка сервера" + ex.Message);
-                throw new Exception("Внутрення ошибка сервера" + ex.Message);
+                _logger.LogError(ex, "Произошла ошибка при получении продуктов: {Message}", ex.Message);
+                _logger.LogError("Stack Trace: {StackTrace}", ex.StackTrace);
+                if (ex.InnerException != null)
+                {
+                    _logger.LogError("Inner Exception: {InnerMessage}", ex.InnerException.Message);
+                    _logger.LogError("Inner Stack Trace: {InnerStackTrace}", ex.InnerException.StackTrace);
+                }
+                throw;
             }
         }
-        public async Task<Result<List<Product>>> GetProductCategoryById(int Id)
+        /// <summary>
+        /// Получение продуктов из конкретной категории
+        /// </summary>
+        /// <param name="Id"></param>
+        /// <returns></returns>
+        public async Task<Result<List<Product>>> GetProductCategoryById(Guid Id)
         {
             _logger.LogInformation("ПРинят запрос на получение продукта из категории по индетефекатору {id}", Id);
-            if(Id == 0)
+            if(Id == Guid.Empty)
             {
                 return Result<List<Product>>.Failure(400, "Некорректный индефекатор категории");
             }
@@ -240,20 +277,30 @@ namespace ShopApi
             }
             return Result<List<Product>>.Success(new List<Product> { products }, "Продукт успешно получен");
         }
-        public async Task<Result<List<Product>>> GetProductById(Guid id)
+        /// <summary>
+        /// Получение подробной информации о продукте
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
+        public async Task<Result<Product>> GetProductById(Guid id)
         {
             _logger.LogInformation("Принят запрос на получение продукта по индитифекатору {id}", id);
             if(id == Guid.Empty)
             {
-                return Result<List<Product>>.Failure(400, "Некорректный индефекатор продукта");
+                return Result<Product>.Failure(400, "Некорректный индефекатор продукта");
             }
             var product = await _product.GetProductById(id);
             if(product == null)
             {
-                return Result<List<Product>>.Failure(404, "Продукт по указанному индетейикатору не найден");
+                return Result<Product>.Failure(404, "Продукт по указанному индетейикатору не найден");
             }
-            return Result<List<Product>>.Success(new List<Product> { product }, "Продукт успешно получен");
+            return Result<Product>.Success( product , "Продукт успешно получен");
         }
+        /// <summary>
+        /// Удаление продукта
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         public async Task<Result<bool>> DeleteProduct(Guid id)
         {
             _logger.LogInformation("Принят запрос на удаление продукта по индетефикатору {id}", id);
@@ -271,13 +318,15 @@ namespace ShopApi
             {
                 return Result<bool>.Failure(500, "Ошибка при удалении продукта, обратитесь к администратору");
             }
-            var category = await _category.GetCategoryById(product.CategoryId);
 
-            category.Products.Remove(product);
-            await _category.UpdateCategory(category);
-            
             return Result<bool>.Success(true, "Продукт успешно удален");
         }
+        /// <summary>
+        /// Добавление количества к продукту 
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="quantity"></param>
+        /// <returns></returns>
         public async Task<Result<Product>> GetAddQuantityProduct(Guid id, int quantity)
         {
             _logger.LogInformation("Принят запрос на добаление количества продукта по индефукатору {id}", id);
@@ -302,6 +351,11 @@ namespace ShopApi
             }
             return Result<Product>.Success(result, "Количество продукта успешно обновлено");
         }
+        /// <summary>
+        /// Получение созданных продуктов менеджером и админом
+        /// </summary>
+        /// <param name="UserId"></param>
+        /// <returns></returns>
         public async Task<Result<List<Product>>> GetAdministratorProduct(Guid UserId)
         {
             _logger.LogInformation("Принят запрос на получание созданных администратором продуктов по индефекатору {UserId}", UserId);

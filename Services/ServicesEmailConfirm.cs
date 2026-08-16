@@ -21,6 +21,13 @@ namespace ShopApi
             _repository = repository;
             _userManager = userManager;
         }
+        /// <summary>
+        /// Метод формирования сообщения и отправки кода подтверждение на почту Email
+        /// </summary>
+        /// <param name="UserId"></param>
+        /// <param name="IpAddress"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public async Task<Result<bool>> SendConfirmEmail(Guid UserId, string IpAddress)
         {
             try

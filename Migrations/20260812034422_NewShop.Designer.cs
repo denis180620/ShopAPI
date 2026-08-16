@@ -13,8 +13,8 @@ using ShopApi;
 namespace ShopApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260731134215_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260812034422_NewShop")]
+    partial class NewShop
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -158,14 +158,11 @@ namespace ShopApi.Migrations
 
             modelBuilder.Entity("ShopApi.Category", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
@@ -178,15 +175,13 @@ namespace ShopApi.Migrations
                         .HasColumnType("character varying(100)");
 
                     b.Property<string>("NameEn")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("NameRu")
-                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("ParentCategoryId")
-                        .HasColumnType("integer");
+                    b.Property<Guid?>("ParentCategoryId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -266,7 +261,6 @@ namespace ShopApi.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PaymentUrl")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("Paymentstatus")
@@ -294,7 +288,6 @@ namespace ShopApi.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("promoCode")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -375,23 +368,20 @@ namespace ShopApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("CategoryId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
                     b.Property<string>("DescriptionEn")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("DescriptionRu")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<decimal>("DiscountPrice")
@@ -399,7 +389,6 @@ namespace ShopApi.Migrations
                         .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("ImageURL")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
@@ -408,11 +397,9 @@ namespace ShopApi.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.Property<string>("NameEn")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("NameRu")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<decimal>("Price")

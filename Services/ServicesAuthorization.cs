@@ -105,7 +105,7 @@ namespace ShopApi
             _logger.LogInformation("Вход пользователя: {Email}", user.Email);
 
             var users = await _userManager.FindByEmailAsync(user.Email);
-            if(user == null)
+            if(users == null)
             {
                 _logger.LogWarning("ПОльзователь не найден: {Email}", user.Email);
                 return Result<ResponseLoginUser>.Failure(404, "Неверный email или пароль");

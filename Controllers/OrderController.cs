@@ -16,10 +16,12 @@ namespace ShopApi
             _order = order;
             _logger = logger;
         }
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateOrder([FromBody] OrderRequestDTO order)
         {  
                 _logger.LogInformation("Принят запрос на создание заказа");
+                order.UserId = GetUserIdFromToken();
                 var result = await _order.CreateOrder(order);
                 if(!result.IsSuccess)
                 {
@@ -27,8 +29,9 @@ namespace ShopApi
                 }
                 return Ok(result);
         }
-        [HttpPut]
-        public async Task<IActionResult> UpdateOrder([FromBody] Guid OrderId, Guid productId, int Quantity)
+        [Authorize]
+        [HttpPut("{orderId}")]
+        public async Task<IActionResult> UpdateOrder(Guid OrderId, Guid productId, int Quantity)
         {
             
                 _logger.LogInformation("Принят запрос на редактирование заказа");
@@ -51,7 +54,7 @@ namespace ShopApi
                 return Ok(result);  
         }
         [Authorize(Roles = "Admin,Manager")]
-        [HttpGet]
+        [HttpGet("users")]
         public async Task<IActionResult> GetOrders()
         {
                 _logger.LogInformation("Принят запрос получение всех заказов");
@@ -116,7 +119,7 @@ namespace ShopApi
                 return Ok(result);           
         }
         [Authorize]
-        [HttpGet("/{id}")]
+        [HttpPost("by-order/{id}")]
         public async Task<IActionResult> BuyOrder(Guid Id)
         { 
                 _logger.LogInformation("Получен запрос на оплату заказа");
