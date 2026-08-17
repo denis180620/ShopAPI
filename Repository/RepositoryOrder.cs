@@ -11,7 +11,7 @@ namespace ShopApi
         Task<List<Order>> GetOredrs();
         Task<List<Order>> GetOrderStatus(OrderStatus status);
         Task<Order> PutOrder(Order order);
-        Task<Order> GetOrdersByUserId(Guid UserId);
+        Task<List<Order>> GetOrdersByUserId(Guid UserId);
     }
     public class RepositoryOreder : IOrder
     {
@@ -41,7 +41,7 @@ namespace ShopApi
         {
             try
             {
-                var order = await _context.Orders.FirstOrDefaultAsync(c=> c.Id == OrderId);
+                var order = await _context.Orders.Include(o => o.OrderItems).FirstOrDefaultAsync(c=> c.Id == OrderId);
                 return order;
             }
             catch(Exception ex)
@@ -87,11 +87,11 @@ namespace ShopApi
                 throw new Exception("Ошибка обновления заказа" + ex.Message);
             }
         }
-        public async Task<Order> GetOrdersByUserId(Guid UserId)
+        public async Task<List<Order>> GetOrdersByUserId(Guid UserId)
         {
             try
             {
-                var order = await _context.Orders.FirstOrDefaultAsync(c => c.UserId == UserId);
+                var order = await _context.Orders.Where(u => u.UserId == UserId).ToListAsync();
                 return order;
             }
             catch(Exception ex)

@@ -31,11 +31,11 @@ namespace ShopApi
         }
         [Authorize]
         [HttpPut("{orderId}")]
-        public async Task<IActionResult> UpdateOrder(Guid OrderId, Guid productId, int Quantity)
+        public async Task<IActionResult> UpdateOrder(Guid OrderId, [FromBody] RequestUpdateOrderProduct requestUpdate)
         {
             
                 _logger.LogInformation("Принят запрос на редактирование заказа");
-                var result = await _order.UpdateAddProductsToOrder(OrderId, productId, Quantity);
+                var result = await _order.UpdateAddProductsToOrder(OrderId, requestUpdate.ProductId, requestUpdate.Quantity);
                 if (!result.IsSuccess)
                 {
                 return BadRequest(result.ErrorMessage);
@@ -85,7 +85,7 @@ namespace ShopApi
         [HttpPut]
         public async Task<IActionResult> PutOrder([FromBody] Order order)
         {
-                _logger.LogInformation("ПРинят запрос на изменения заказа");
+                _logger.LogInformation("Принят запрос на изменения заказа");
                 var result = await _order.PutOrder(order);
                 if (!result.IsSuccess)
                 {
@@ -129,6 +129,30 @@ namespace ShopApi
                     return BadRequest(result.ErrorMessage);
                 }
                 return Ok(result);
+        }
+        [Authorize]
+        [HttpDelete("delete/{OrderId}")]
+        public async Task<IActionResult> DeleteProductOrder(Guid OrderId, [FromBody] Guid ProductId)
+        {
+            _logger.LogInformation("Принят запрос на удаление продукта из заказа");
+            var result = await _order.DeleteProductOrder(OrderId, ProductId);
+            if (!result.IsSuccess)
+            {
+                return BadRequest(result.ErrorMessage);
+            }
+            return Ok(result);
+        }
+        [Authorize(Roles ="Admin,Manager")]
+        [HttpPatch("{orderId}")]
+        public async Task<IActionResult> PutStatusOrder(Guid orderId, [FromBody] UpdateStatusOrder status)
+        {
+            _logger.LogInformation("Принят запрос на изменение статуса заказа");
+            var result = await _order.PutOrderStatus(orderId, status.Status);
+            if (!result.IsSuccess)
+            {
+                return BadRequest(result.ErrorMessage);
+            }
+            return Ok(result);
         }
         private Guid GetUserIdFromToken()
         {

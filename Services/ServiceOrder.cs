@@ -11,11 +11,13 @@ namespace ShopApi
         Task<Result<OrderResponseDto>> GetOrderAsync(Guid OrderId);
         Task<Result<List<Order>>> GetOredrs();
         Task<Result<List<Order>>> GetOrderStatus(string status);
-        Task<Result<Order>> GetOrdersByUserId(Guid UserId);
+        Task<Result<List<Order>>> GetOrdersByUserId(Guid UserId);
         Task<Result<bool>> DeleteOrder(Guid OrderId);
         Task<Result<string>> BuyOrder(Guid OrderId);
         Task<Result<string>> GetStatusOrder(Guid OrderId);
         Task<Result<Order>> PutOrder(Order order);
+        Task<Result<bool>> DeleteProductOrder(Guid OrderId, Guid ProdictId);
+        Task<Result<bool>> PutOrderStatus(Guid orderId, int status);
     }
     public class ServiceOrder : IServiceOrder
     {
@@ -25,8 +27,9 @@ namespace ShopApi
         private readonly IProduct _product;
         private readonly UserManager<User> _userManager;
         private readonly IPaymentClient _client;
+        private readonly AppDbContext _context;
 
-        public ServiceOrder(IOrder order, IOrderItem orderItem, ILogger<ServiceOrder> logger, UserManager<User> userManager, IProduct product, IPaymentClient client)
+        public ServiceOrder(IOrder order, IOrderItem orderItem, ILogger<ServiceOrder> logger, UserManager<User> userManager, IProduct product, IPaymentClient client, AppDbContext context)
         {
             _order = order;
             _orderItem = orderItem;
@@ -34,6 +37,7 @@ namespace ShopApi
             _userManager = userManager;
             _product = product;
             _client = client;
+            _context = context;
         }
         /// <summary>
         /// Создание заказа
@@ -67,7 +71,7 @@ namespace ShopApi
                 }
                 var newOrder = new Order
                 {
-                    OrderId = new Guid(),
+                    OrderId =  Guid.NewGuid(),
                     UserId = order.UserId,
                     Status = OrderStatus.Pending,
                     CreatedAt = DateTime.UtcNow,
@@ -141,9 +145,8 @@ namespace ShopApi
                 var nameproduct = order.OrderItems.FirstOrDefault(s => s.ProductId == productId);
                 if(nameproduct != null)
                 {
-                    nameproduct.Quantity += Quantity;
-                    order.TotalAmount += product.Price * Quantity;
-                    order.OrderItems.Add(nameproduct);
+                    nameproduct.Quantity = Quantity;
+                    order.TotalAmount = product.Price * Quantity;                  
                 }
                 else{
                 var orderItems = await _orderItem.CreateItem(new OrderItem
@@ -156,15 +159,16 @@ namespace ShopApi
                     DiscountPrice = product.DiscountPrice,
                     OrderId = OrderId
                 });
-                    order.OrderItems.Add(orderItems);
-                    order.TotalAmount += product.Price * Quantity;
+
+                    order.TotalAmount = order.OrderItems.Sum(i => i.Quantity * i.UnitPrice);
                 }
-                var result = await _order.PutOrder(order);
-                if(result == null)
-                {
-                    return Result<Order>.Failure(500, "Ошибка обновления заказа");
-                }
-                return Result<Order>.Success(result, "Добавлен продукт в корзину");
+                await _context.SaveChangesAsync();
+                //var result = await _order.PutOrder(order);
+                //if(result == null)
+                //{
+                //    return Result<Order>.Failure(500, "Ошибка обновления заказа");
+                // }
+                return Result<Order>.Success(order, "Добавлен продукт в корзину");
             }
             catch (Exception ex)
             {
@@ -265,26 +269,26 @@ namespace ShopApi
         /// </summary>
         /// <param name="UserId"></param>
         /// <returns></returns>
-        public async Task<Result<Order>> GetOrdersByUserId(Guid UserId)
+        public async Task<Result<List<Order>>> GetOrdersByUserId(Guid UserId)
         {
             try
             {
                 _logger.LogInformation("Получение заказов пользователя: {UserId}", UserId);
                 if(UserId == Guid.Empty)
                 {
-                    return Result<Order>.Failure(400, "Некорректный идентификатор пользователя");
+                    return Result<List<Order>>.Failure(400, "Некорректный идентификатор пользователя");
                 }
                 var order = await _order.GetOrdersByUserId(UserId);
                 if(order == null)
                 {
-                    return Result<Order>.Failure(404, "Заказы пользователя не найдены");
+                    return Result<List<Order>>.Failure(404, "Заказы пользователя не найдены");
                 }
-                return Result<Order>.Success(order, "Заказы пользователя получены");
+                return Result<List<Order>>.Success(order, "Заказы пользователя получены");
             }
             catch(Exception ex)
             {
                 _logger.LogError(ex, "Ошибка получения заказов пользователя");
-                return Result<Order>.Failure(500, "Ошибка получения заказов пользователя" + ex.Message);
+                return Result<List<Order>>.Failure(500, "Ошибка получения заказов пользователя" + ex.Message);
             }
         }
         /// <summary>
@@ -422,6 +426,86 @@ namespace ShopApi
             {
                 _logger.LogError(ex, "Ошибка обновления заказа");
                 return Result<Order>.Failure(500, "Ошибка обновления заказа" + ex.Message);
+            }
+        }
+        public async Task<Result<bool>> DeleteProductOrder(Guid OrderId, Guid ProductId)
+        {
+            try
+            {
+                _logger.LogInformation("Принят запрос на удаление позиции заказа");
+                if(OrderId == Guid.Empty || ProductId == Guid.Empty)
+                {
+                    return Result<bool>.Failure(400, "Не корректные данные");
+                }
+                var order = await _order.GetOrderAsync(OrderId);
+                if(order == null)
+                {
+                    return Result<bool>.Failure(400, "Не корректный Id заказа");
+                }
+                var orderItem = await _orderItem.GetOrderItemsAsync(OrderId);
+
+                var product =  orderItem.FirstOrDefault(x => x.ProductId == ProductId);
+
+                var deleteResult = await _orderItem.DeleteItem(product);
+
+                return Result<bool>.Success(true, "Позиция удалена");
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка удаления позиции заказа");
+                return Result<bool>.Failure(500, "Ошибка удаления позиции заказа " + ex.Message);
+            }
+        }
+        public async Task<Result<bool>> PutOrderStatus(Guid orderId, int status)
+        {
+            try
+            {
+                _logger.LogInformation("Принят запрос на изменение статуса заказа {orderId}", orderId);
+                if(orderId == Guid.Empty)
+                {
+                    return Result<bool>.Failure(400, "Некорректный Id заказа");
+                }
+                var order = await _order.GetOrderAsync(orderId);
+                if(order == null)
+                {
+                    return Result<bool>.Failure(400, "Некорректный id заказа");
+                }
+                if(order.Status == OrderStatus.Delivered)
+                {
+                    return Result<bool>.Failure(400, "Доставленный заказ не отменаяется");
+                }
+                if(order.Status == OrderStatus.Cancelled)
+                {
+                    return Result<bool>.Failure(400, "Заказ уже отменен");
+                }
+                 switch (status)
+                {
+                    case 0:
+                    order.Status = OrderStatus.Pending;
+                    break;
+                    case 1:
+                    order.Status = OrderStatus.Processing;
+                        break;
+                    case 2:
+                    order.Status = OrderStatus.Shipped;
+                        break;
+                    case 3: 
+                    order.Status = OrderStatus.Delivered;
+                        break;
+                    case 4:
+                    order.Status = OrderStatus.Cancelled;
+                        break;
+                    default:
+                    order.Status = OrderStatus.Pending;
+                        break;
+                }
+                await _context.SaveChangesAsync();
+                return Result<bool>.Success(true, "Статус успешно изменен");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Ошибка ошибка изменения статуса заказа");
+                return Result<bool>.Failure(500, "Ошибка изменения статуса заказа " + ex.Message);
             }
         }
     }

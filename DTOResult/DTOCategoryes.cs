@@ -9,4 +9,15 @@ namespace ShopApi
         public Guid? ParentCategoryId { get; set; }
 
     }
+
+    public class RequestUpdateOrderProduct
+    {
+        public Guid ProductId {get; set;}
+        public int Quantity {get; set;}
+    }
+
+    public class UpdateStatusOrder
+    {
+        public int Status {get; set;}
+    }
 }
