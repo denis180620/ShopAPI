@@ -21,6 +21,22 @@ services:
       retries: 5
     networks:
       - shop-network
+      
+  #ShopApi Redis
+  redis:
+    image: redis:7-alpine
+    container_name: shopapi-redis
+    ports:
+      - "6379:6379"
+    volumes:
+        - redis_data:/data
+    healthcheck:
+        test: ["CMD", "redis-cli", "ping"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+    networks:
+      - shop-network
 
   # ShopApi Application (Development)
   shopapi:
@@ -49,6 +65,7 @@ services:
 
 volumes:
   postgres-dev-data:
+  redis_data:
 
 networks:
   shop-network:

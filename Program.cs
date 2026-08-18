@@ -8,6 +8,7 @@ using Microsoft.VisualBasic;
 using ShopApi;
 using Polly;
 using Polly.Extensions.Http;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -97,6 +98,21 @@ builder.Services.AddScoped<IEmailService, EmailSerives>();
 
 // Регистрация middleware для обработки исключений
 builder.Services.AddScoped<GlobalExceptionHandler>();
+
+builder.Services.AddStackExchangeRedisCache(options => {
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "ShopApi_";
+});
+
+// Регистрация  IConnectionMultiplexer для доступа к командам к Redis-командам
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var configuration = builder.Configuration.GetConnectionString("Redis");
+    return ConnectionMultiplexer.Connect(configuration);
+});
+
+// Регистрация сервиса кеширования
+builder.Services.AddScoped<ICacheService, RedisCacheServices>();
 var paymentBaseUrl = builder.Configuration["PaymentService:BaseUrl"];
 if (string.IsNullOrEmpty(paymentBaseUrl))
 {

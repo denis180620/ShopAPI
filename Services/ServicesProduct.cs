@@ -16,11 +16,13 @@ namespace ShopApi
         private readonly ILogger<ServiceProduct> _logger;
         private readonly ICategory _category;
         private readonly IProduct _product;
-        public ServiceProduct(ICategory category, ILogger<ServiceProduct> logger, IProduct product)
+        private readonly ICacheService _cache;
+        public ServiceProduct(ICategory category, ILogger<ServiceProduct> logger, IProduct product, ICacheService cache)
         {
             _category = category;
             _logger = logger;
             _product = product;
+            _cache = cache;
         }
         /// <summary>
         /// Создание продукта, создание продукта возможно только с ролью Admin Managaer
@@ -86,15 +88,15 @@ namespace ShopApi
                 return Result<bool>.Failure(500, "Ошибка создания продукта повторите попытку позже или обратитесь к администратору");
             }
 
-            // Связь продукта с категорией создаётся автоматически через CategoryId
-            // EF Core загрузит продукты при обращении к category.Products
+            await _cache.RemoveByPatternAsync("product:page:*"); // чистка кеша
+            await _cache.RemoveByPatternAsync("category:product:*");
 
             return Result<bool>.Success(true, $"Продукт создан для посмотра товара {product.Name} перейдите в каталог товара");
         }
         catch(Exception ex)
             {
                 _logger.LogError("Произошла ошибка сервера" + ex.Message);
-                throw new Exception("Внутрення ошибка сервера"+ ex.Message);
+                return Result<bool>.Failure(500, "Внутренняя ошибка сервера");
             }
         }
         /// <summary>
@@ -126,9 +128,9 @@ namespace ShopApi
                 {
                     return Result<bool>.Failure(400, "Скидка превышает стоимость товара");
                 }
-                if (product.StockQuantity < 2)
+                if (product.StockQuantity < 0)
                 {
-                    return Result<bool>.Failure(400, "Количество товара должно быть больше 1");
+                    return Result<bool>.Failure(400, "Количество товара должно быть положительным");
                 }
                 if (product.CategoryId == Guid.Empty)
                 {
@@ -171,12 +173,16 @@ namespace ShopApi
                 {
                     return Result<bool>.Failure(500, "Ошибка обновления продукта, для обновления продукта обратитесь к администратору");
                 }
+
+                await _cache.RemoveByPatternAsync("product:page:*"); // чистка кеша
+                await _cache.RemoveByPatternAsync("category:product:*");
+
                 return Result<bool>.Success(true, "Обновление продукта прошел успешно");
             }
             catch (Exception ex)
             {
                 _logger.LogError("Произошла ошибка сервера" + ex.Message);
-                throw new Exception("Внутрення ошибка сервера" + ex.Message);
+                return Result<bool>.Failure(500, "Внутренняя ошибка сервера");
             }
         }
         /// <summary>
@@ -207,6 +213,14 @@ namespace ShopApi
                 }
                 if (string.IsNullOrEmpty(request.SearchTerm))
                 {
+                    var cacheKey = $"product:page:{request.PageNumber}:size:{request.PageSize}";
+
+                    var cached = await _cache.GetAsync<PaginationResponse<Product>>(cacheKey);
+                    if(cached != null)
+                    {
+                        _logger.LogInformation("Данные получены из кеша: {Key}", cacheKey);
+                        return Result<PaginationResponse<Product>>.Success(cached, "Продукты получены");
+                    }
                     var searchRequest = new PaginationRequest
                     {
                         PageNumber = request.PageNumber,
@@ -224,6 +238,9 @@ namespace ShopApi
                         return Result<PaginationResponse<Product>>.Failure(404, "Продукты по указанным фильтрам не найдены");
                     }
                     var responses = new PaginationResponse<Product>(result.Items, result.TotalCount, request.PageNumber, request.PageSize);
+
+                    await _cache.SetAsync(cacheKey, responses, TimeSpan.FromMinutes(10)); // кешируем полученные данные
+
                     return Result<PaginationResponse<Product>>.Success(responses, "Продукты успешно получены");
                 }
                 var SearshRequestWithTerm = new PaginationRequest
@@ -255,7 +272,7 @@ namespace ShopApi
                     _logger.LogError("Inner Exception: {InnerMessage}", ex.InnerException.Message);
                     _logger.LogError("Inner Stack Trace: {InnerStackTrace}", ex.InnerException.StackTrace);
                 }
-                throw;
+                return Result<PaginationResponse<Product>>.Failure(500, "Внутренняя ошибка сервера");
             }
         }
         /// <summary>
@@ -265,17 +282,29 @@ namespace ShopApi
         /// <returns></returns>
         public async Task<Result<List<Product>>> GetProductCategoryById(Guid Id)
         {
-            _logger.LogInformation("ПРинят запрос на получение продукта из категории по индетефекатору {id}", Id);
+            _logger.LogInformation("Принят запрос на получение продукта из категории по индетефекатору {id}", Id);
             if(Id == Guid.Empty)
             {
                 return Result<List<Product>>.Failure(400, "Некорректный индефекатор категории");
             }
+            var cacheKey = $"category:product:{Id}";
+
+            var cached = await _cache.GetAsync<List<Product>>(cacheKey);
+            if(cached != null)
+            {
+                _logger.LogInformation("Данные получены из кеша: {Key}", cacheKey);
+                return Result<List<Product>>.Success(cached, "Продукты получены");
+            }
+
             var products = await _product.GetProductCategoryById(Id);
-            if(products == null)
+            if(products == null || !products.Any())
             {
                 return Result<List<Product>>.Failure(404, "Продуктов по указанному индетейикатору не найдено");
             }
-            return Result<List<Product>>.Success(new List<Product> { products }, "Продукт успешно получен");
+
+            await _cache.SetAsync(cacheKey, products, TimeSpan.FromMinutes(10)); // загружаем в кеш
+
+            return Result<List<Product>>.Success( products , "Продукт успешно получен");
         }
         /// <summary>
         /// Получение подробной информации о продукте

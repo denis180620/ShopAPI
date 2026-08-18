@@ -11,7 +11,7 @@ namespace ShopApi
 
         Task<List<Product>> GetQuantityProductAsync(int quantity);
         Task<Product> GetProductById(Guid Id);
-        Task<Product> GetProductCategoryById(Guid Id);
+        Task<List<Product>> GetProductCategoryById(Guid Id);
         Task<(IEnumerable<Product> Items, int TotalCount)> GetProductsPaginated(
            PaginationRequest request);
         Task<List<Product>> GetAdministratorProduct(Guid UserId);
@@ -148,9 +148,9 @@ namespace ShopApi
             var product = await _context.Products.AsNoTracking().Where(c => c.StockQuantity < queantity).ToListAsync();
             return product;
         }
-        public async Task<Product> GetProductCategoryById(Guid Id)
+        public async Task<List<Product>> GetProductCategoryById(Guid Id)
         {
-            var product = await _context.Products.FirstOrDefaultAsync(s => s.CategoryId == Id);
+            var product = await _context.Products.Where(s => s.CategoryId == Id).ToListAsync();
             return product;
         }
         public async Task<Product> GetProductById(Guid Id)
